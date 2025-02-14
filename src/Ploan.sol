@@ -13,11 +13,11 @@ contract Ploan {
         loanIdBucket++;
 
         require(totalAmount > 0, "Total amount must be greater than 0");
-        require(borrower != msg.sender, "Borrower cannot be the loaner");
+        require(borrower != msg.sender, "Borrower cannot be the lender");
         require(loanedAsset != address(0), "Loaned asset cannot be zero address");
 
-        uint256 loanerBalance = ERC20(loanedAsset).balanceOf(msg.sender);
-        require(loanerBalance >= totalAmount, "Loaner does not have enough balance");
+        uint256 lenderBalance = ERC20(loanedAsset).balanceOf(msg.sender);
+        require(lenderBalance >= totalAmount, "Lender does not have enough balance");
 
         PersonalLoan memory newLoan;
         newLoan.loanId = loanId;
@@ -35,13 +35,13 @@ contract Ploan {
     // commitToLoan commits the borrower to the loan
     function commitToLoan(uint256 loanID) public {
         PersonalLoan memory loan = loansByID[loanID];
-        require(loan.borrower == msg.sender, "Only the borrower can accept the loan");
+        require(loan.borrower == msg.sender, "Only the borrower can commit to the loan");
 
-        if (loan.accepted) {
+        if (loan.borrowerCommitted) {
             return;
         }
 
-        loan.accepted = true;
+        loan.borrowerCommitted = true;
 
         loansByID[loanID] = loan;
     }
@@ -49,7 +49,8 @@ contract Ploan {
     // executeLoan executes a loan, transferring the asset from the lender to the borrower
     function executeLoan(uint256 loanID) public {
         PersonalLoan memory loan = loansByID[loanID];
-        require(loan.lender == msg.sender, "Only the loaner can execute the loan");
+        require(loan.lender == msg.sender, "Only the lender can execute the loan");
+        require(loan.borrowerCommitted, "Borrower has not committed to the loan");
 
         if (loan.started) {
             return;
@@ -66,7 +67,7 @@ contract Ploan {
     // cancelLoan cancels a loan
     function cancelLoan(uint256 loanID) public {
         PersonalLoan memory loan = loansByID[loanID];
-        require(loan.lender == msg.sender, "Only the loaner can cancel the loan");
+        require(loan.lender == msg.sender, "Only the lender can cancel the loan");
 
         if (loan.canceled) {
             return;
@@ -80,13 +81,12 @@ contract Ploan {
 
     function payLoan(uint256 loanID, uint256 amount) public {
         PersonalLoan memory loan = loansByID[loanID];
-        require(loan.borrower == msg.sender, "Only the borrower can pay the loan");
+        require(loan.repayable, "Loan is not repayable");
         require(amount > 0, "Amount must be greater than 0");
         require(
             loan.totalAmountRepaid + amount <= loan.totalAmountLoaned,
             "Total amount repaid must be less than or equal to total amount loaned"
         );
-        require(loan.repayable, "Loan is not repayable");
 
         ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
 
@@ -111,7 +111,7 @@ contract Ploan {
         address borrower; // the address to whom the amount is loaned
         address lender; // the address that loaned the asset
         address loanedAsset; // the address of the loaned asset
-        bool accepted;
+        bool borrowerCommitted;
         bool canceled;
         bool completed;
         bool started;
