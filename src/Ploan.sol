@@ -76,27 +76,6 @@ contract Ploan {
         loansByID[loanID] = loan;
     }
 
-    // completeLoan completes a loan
-    function completeLoan(uint256 loanID) public {
-        PersonalLoan memory loan = loansByID[loanID];
-        require(
-            loan.lender == msg.sender || loan.borrower == msg.sender,
-            "Only the loaner or borrower can complete the loan"
-        );
-        require(
-            loan.totalAmountLoaned <= loan.totalAmountRepaid,
-            "Total amount repaid must be greater than or equal to total amount loaned"
-        );
-
-        if (loan.completed) {
-            return;
-        }
-
-        loan.completed = true;
-
-        loansByID[loanID] = loan;
-    }
-
     function payLoan(uint256 loanID, uint256 amount) public {
         PersonalLoan memory loan = loansByID[loanID];
         require(loan.borrower == msg.sender, "Only the borrower can pay the loan");
@@ -107,6 +86,10 @@ contract Ploan {
         );
 
         loan.totalAmountRepaid += amount;
+
+        if (loan.totalAmountRepaid == loan.totalAmountLoaned) {
+            loan.completed = true;
+        }
 
         loansByID[loanID] = loan;
     }

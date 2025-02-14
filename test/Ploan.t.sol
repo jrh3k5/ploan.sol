@@ -41,7 +41,7 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.payLoan(loanID, 50);
 
-        vm.prank(borrower);
-        ploan.completeLoan(loanID);
+        Ploan.PersonalLoan memory completedLoan = ploan.getLoan(loanID);
+        assert(completedLoan.completed);
     }
 }
