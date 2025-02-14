@@ -21,7 +21,7 @@ contract PloanTest is Test {
     }
 
     function test_defaultLifecycle() public {
-        token.transfer(lender, 100);
+        token.transfer(lender, 120);
 
         vm.prank(lender);
         uint256 loanID = ploan.createLoan(borrower, address(token), 100);
@@ -35,11 +35,27 @@ contract PloanTest is Test {
         vm.prank(lender);
         ploan.executeLoan(loanID);
 
+        // The loaned amount should be transferred to the lender
+        assertEq(token.balanceOf(lender), 20);
+        assertEq(token.balanceOf(borrower), 100);
+
         vm.prank(borrower);
-        ploan.payLoan(loanID, 50);
+        token.approve(address(ploan), 50);
 
         vm.prank(borrower);
         ploan.payLoan(loanID, 50);
+
+        assertEq(token.balanceOf(lender), 70);
+        assertEq(token.balanceOf(borrower), 50);
+
+        vm.prank(borrower);
+        token.approve(address(ploan), 50);
+
+        vm.prank(borrower);
+        ploan.payLoan(loanID, 50);
+
+        assertEq(token.balanceOf(lender), 120);
+        assertEq(token.balanceOf(borrower), 0);
 
         Ploan.PersonalLoan memory completedLoan = ploan.getLoan(loanID);
         assert(completedLoan.completed);

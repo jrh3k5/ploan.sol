@@ -56,6 +56,7 @@ contract Ploan {
         }
 
         loan.started = true;
+        loan.repayable = true;
 
         ERC20(loan.loanedAsset).transferFrom(loan.lender, loan.borrower, loan.totalAmountLoaned);
 
@@ -72,6 +73,7 @@ contract Ploan {
         }
 
         loan.canceled = true;
+        loan.repayable = false;
 
         loansByID[loanID] = loan;
     }
@@ -84,11 +86,15 @@ contract Ploan {
             loan.totalAmountRepaid + amount <= loan.totalAmountLoaned,
             "Total amount repaid must be less than or equal to total amount loaned"
         );
+        require(loan.repayable, "Loan is not repayable");
+
+        ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
 
         loan.totalAmountRepaid += amount;
 
         if (loan.totalAmountRepaid == loan.totalAmountLoaned) {
             loan.completed = true;
+            loan.repayable = false;
         }
 
         loansByID[loanID] = loan;
@@ -109,5 +115,6 @@ contract Ploan {
         bool canceled;
         bool completed;
         bool started;
+        bool repayable;
     }
 }
