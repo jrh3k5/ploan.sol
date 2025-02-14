@@ -2,11 +2,7 @@
 
 A tool used to loan someone (at 0% interest) and track the repayment of the loan.
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
+## Development
 
 ### Build
 
