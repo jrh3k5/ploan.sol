@@ -3,9 +3,11 @@ pragma solidity ^0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+/// @title A contract for managing personal loans
+/// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract Ploan {
     uint256 private loanIdBucket = 1;
-    mapping(uint256 => PersonalLoan) private loansByID;
+    mapping(uint256 loanId => PersonalLoan loan) private loansByID;
 
     // createLoan creates a loan and returns the loan ID
     function createLoan(address borrower, address loanedAsset, uint256 totalAmount) public returns (uint256) {

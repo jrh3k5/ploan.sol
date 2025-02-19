@@ -5,6 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {Ploan} from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
 
+/// @title A simple ERC20 for testing purposes.
+/// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract PloanTest is Test {
     Ploan public ploan;
     PloanTestToken public token;
