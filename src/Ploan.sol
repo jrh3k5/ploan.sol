@@ -4,8 +4,8 @@ pragma solidity ^0.8.26;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract Ploan {
-    uint256 loanIdBucket = 1;
-    mapping(uint256 => PersonalLoan) loansByID;
+    uint256 private loanIdBucket = 1;
+    mapping(uint256 => PersonalLoan) private loansByID;
 
     // createLoan creates a loan and returns the loan ID
     function createLoan(address borrower, address loanedAsset, uint256 totalAmount) public returns (uint256) {
@@ -59,7 +59,7 @@ contract Ploan {
         loan.started = true;
         loan.repayable = true;
 
-        ERC20(loan.loanedAsset).transferFrom(loan.lender, loan.borrower, loan.totalAmountLoaned);
+        ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
 
         loansByID[loanID] = loan;
     }
