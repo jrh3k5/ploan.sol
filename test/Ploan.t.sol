@@ -5,6 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {Ploan} from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
 
+/// @title A simple ERC20 for testing purposes.
+/// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract PloanTest is Test {
     Ploan public ploan;
     PloanTestToken public token;
@@ -23,8 +25,11 @@ contract PloanTest is Test {
     }
 
     function test_defaultLifecycle() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanID);
@@ -61,39 +66,77 @@ contract PloanTest is Test {
         assert(completedLoan.completed);
     }
 
-    function test_createLoan_zeroAmount() public {
-        vm.expectRevert("Total amount must be greater than 0");
-        ploan.createLoan(borrower, address(token), 0);
+    function test_disallowLoanProposal() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        // a lack of a failure indicates success
+        ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.prank(borrower);
+        ploan.disallowLoanProposal(lender);
+
+        // Now it should fail
+        vm.prank(lender);
+        vm.expectRevert("Lender is not allowed to propose a loan");
+        ploan.proposeLoan(borrower, address(token), 100);
     }
 
-    function test_createLoan_noSelfLoans() public {
+    function test_proposeLoan_zeroAmount() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.expectRevert("Total amount must be greater than 0");
+        ploan.proposeLoan(borrower, address(token), 0);
+    }
+
+    function test_proposeLoan_noSelfLoans() public {
         vm.expectRevert("Borrower cannot be the lender");
         vm.prank(lender);
-        ploan.createLoan(lender, address(token), 100);
+        ploan.proposeLoan(lender, address(token), 100);
     }
 
-    function test_createLoan_zeroAssetAddress() public {
+    function test_proposeLoan_zeroAssetAddress() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.expectRevert("Loaned asset cannot be zero address");
-        ploan.createLoan(borrower, address(0), 100);
+        ploan.proposeLoan(borrower, address(0), 100);
     }
 
-    function test_createLoan_insufficientLenderBalance() public {
+    function test_proposeLoan_insufficientLenderBalance() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.expectRevert("Lender does not have enough balance");
         vm.prank(lender);
-        ploan.createLoan(borrower, address(token), 1000);
+        ploan.proposeLoan(borrower, address(token), 1000);
+    }
+
+    function test_proposeLoan_notAllowed() public {
+        vm.prank(lender);
+        vm.expectRevert("Lender is not allowed to propose a loan");
+        ploan.proposeLoan(borrower, address(token), 100);
     }
 
     function test_commitToLoan_notBorrower() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.expectRevert("Only the borrower can commit to the loan");
         ploan.commitToLoan(loanID);
     }
 
     function test_commitToLoan_alreadyCommitted() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanID);
@@ -103,16 +146,22 @@ contract PloanTest is Test {
     }
 
     function test_executeLoan_notLender() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.expectRevert("Only the lender can execute the loan");
         ploan.executeLoan(loanID);
     }
 
     function test_executeLoan_borrowerNotCommitted() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(lender);
         vm.expectRevert("Borrower has not committed to the loan");
@@ -120,8 +169,11 @@ contract PloanTest is Test {
     }
 
     function test_cancelLoan() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(lender);
         ploan.cancelLoan(loanID);
@@ -132,16 +184,22 @@ contract PloanTest is Test {
     }
 
     function test_cancelLoan_notLender() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.expectRevert("Only the lender can cancel the loan");
         ploan.cancelLoan(loanID);
     }
 
     function test_cancelLoan_alreadyCanceled() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(lender);
         ploan.cancelLoan(loanID);
@@ -152,8 +210,11 @@ contract PloanTest is Test {
     }
 
     function test_payLoan_zeroAmount() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanID);
@@ -174,8 +235,11 @@ contract PloanTest is Test {
     }
 
     function test_payLoan_canceled() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanID);
@@ -199,8 +263,11 @@ contract PloanTest is Test {
         // try to pay after the loan is completed
         token.transfer(lender, 20);
 
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanID);
@@ -227,8 +294,11 @@ contract PloanTest is Test {
         // try to pay more than what's owed on the loan
         token.transfer(lender, 20);
 
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
         vm.prank(lender);
-        uint256 loanID = ploan.createLoan(borrower, address(token), 100);
+        uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanID);
