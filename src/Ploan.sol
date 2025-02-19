@@ -20,14 +20,14 @@ contract Ploan {
         require(totalAmount > 0, "Total amount must be greater than 0");
         require(borrower != msg.sender, "Borrower cannot be the lender");
         require(loanedAsset != address(0), "Loaned asset cannot be zero address");
-        
+
         bool isAllowlisted = false;
         for (uint256 i = 0; i < loanProposalAllowlist[borrower].length; i++) {
             if (loanProposalAllowlist[borrower][i] == msg.sender) {
                 isAllowlisted = true;
 
                 break;
-            }    
+            }
         }
 
         require(isAllowlisted, "Lender is not allowed to propose a loan");

@@ -27,7 +27,7 @@ contract PloanTest is Test {
     function test_defaultLifecycle() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
-        
+
         vm.prank(lender);
         uint256 loanID = ploan.proposeLoan(borrower, address(token), 100);
 
@@ -76,7 +76,7 @@ contract PloanTest is Test {
 
         vm.prank(borrower);
         ploan.disallowLoanProposal(lender);
-        
+
         // Now it should fail
         vm.prank(lender);
         vm.expectRevert("Lender is not allowed to propose a loan");
@@ -86,7 +86,7 @@ contract PloanTest is Test {
     function test_proposeLoan_zeroAmount() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
-        
+
         vm.expectRevert("Total amount must be greater than 0");
         ploan.proposeLoan(borrower, address(token), 0);
     }
@@ -108,7 +108,7 @@ contract PloanTest is Test {
     function test_proposeLoan_insufficientLenderBalance() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
-        
+
         vm.expectRevert("Lender does not have enough balance");
         vm.prank(lender);
         ploan.proposeLoan(borrower, address(token), 1000);
