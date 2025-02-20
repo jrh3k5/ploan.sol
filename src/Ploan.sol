@@ -9,6 +9,7 @@ contract Ploan {
     uint256 private loanIdBucket = 1;
     mapping(uint256 loanId => PersonalLoan loan) private loansByID;
     mapping(address allowlistOwner => address[] allowlist) private loanProposalAllowlist;
+    mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
 
     // allowLoanProposal allows a user to be added to the loan proposal allowlist
     function allowLoanProposal(address toAllow) public {
@@ -46,14 +47,19 @@ contract Ploan {
         newLoan.lender = msg.sender;
         newLoan.loanedAsset = loanedAsset;
 
+        address[] memory loanParticipants = new address[](2);
+        loanParticipants[0] = msg.sender;
+        loanParticipants[1] = borrower;
+        associateToLoan(loanId, loanParticipants);
+
         loansByID[loanId] = newLoan;
 
         return loanId;
     }
 
     // commitToLoan commits the borrower to the loan
-    function commitToLoan(uint256 loanID) public {
-        PersonalLoan memory loan = loansByID[loanID];
+    function commitToLoan(uint256 loanId) public {
+        PersonalLoan memory loan = loansByID[loanId];
         require(loan.borrower == msg.sender, "Only the borrower can commit to the loan");
 
         if (loan.borrowerCommitted) {
@@ -62,7 +68,7 @@ contract Ploan {
 
         loan.borrowerCommitted = true;
 
-        loansByID[loanID] = loan;
+        loansByID[loanId] = loan;
     }
 
     // disallowLoanProposal removes an address from the loan proposal allowlist for the current user
@@ -83,8 +89,8 @@ contract Ploan {
     }
 
     // executeLoan executes a loan, transferring the asset from the lender to the borrower
-    function executeLoan(uint256 loanID) public {
-        PersonalLoan memory loan = loansByID[loanID];
+    function executeLoan(uint256 loanId) public {
+        PersonalLoan memory loan = loansByID[loanId];
         require(loan.lender == msg.sender, "Only the lender can execute the loan");
         require(loan.borrowerCommitted, "Borrower has not committed to the loan");
 
@@ -97,12 +103,12 @@ contract Ploan {
 
         ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
 
-        loansByID[loanID] = loan;
+        loansByID[loanId] = loan;
     }
 
     // cancelLoan cancels a loan
-    function cancelLoan(uint256 loanID) public {
-        PersonalLoan memory loan = loansByID[loanID];
+    function cancelLoan(uint256 loanId) public {
+        PersonalLoan memory loan = loansByID[loanId];
         require(loan.lender == msg.sender, "Only the lender can cancel the loan");
 
         if (loan.canceled) {
@@ -112,11 +118,12 @@ contract Ploan {
         loan.canceled = true;
         loan.repayable = false;
 
-        loansByID[loanID] = loan;
+        loansByID[loanId] = loan;
     }
 
-    function payLoan(uint256 loanID, uint256 amount) public {
-        PersonalLoan memory loan = loansByID[loanID];
+    // payLoan executes a repayment of a loan.
+    function payLoan(uint256 loanId, uint256 amount) public {
+        PersonalLoan memory loan = loansByID[loanId];
         require(loan.repayable, "Loan is not repayable");
         require(amount > 0, "Amount must be greater than 0");
         require(
@@ -133,11 +140,88 @@ contract Ploan {
             loan.repayable = false;
         }
 
-        loansByID[loanID] = loan;
+        loansByID[loanId] = loan;
     }
 
-    function getLoan(uint256 loanID) external view returns (PersonalLoan memory) {
-        return loansByID[loanID];
+    // cancelPendingLoan cancels a loan
+    function cancelPendingLoan(uint256 loanId) public {
+        PersonalLoan memory loan = loansByID[loanId];
+        if (loan.loanId == 0) {
+            return;
+        }
+
+        require(
+            loan.lender == msg.sender || loan.borrower == msg.sender,
+            "Only the lender or borrower can cancel a pending loan"
+        );
+
+        if (loan.started) {
+            revert("Loan has already been started and cannot be canceled");
+        }
+
+        address[] memory participants = new address[](2);
+        participants[0] = loan.lender;
+        participants[1] = loan.borrower;
+        disassociateFromLoan(loanId, participants);
+
+        delete loansByID[loanId];
+    }
+
+    // getLoans gets all of the loans for the current user
+    function getLoans() external view returns (PersonalLoan[] memory) {
+        uint256[] memory mappedLoanIds = participatingLoans[msg.sender];
+        if (mappedLoanIds.length == 0) {
+            PersonalLoan[] memory noLoans = new PersonalLoan[](0);
+            return noLoans;
+        }
+
+        uint256 nonZeroCount = 0;
+        for (uint256 i = 0; i < mappedLoanIds.length; i++) {
+            if (mappedLoanIds[i] != 0) {
+                nonZeroCount++;
+            }
+        }
+
+        if (nonZeroCount == 0) {
+            PersonalLoan[] memory noLoans = new PersonalLoan[](0);
+            return noLoans;
+        }
+
+        PersonalLoan[] memory userLoans = new PersonalLoan[](nonZeroCount);
+        uint256 userLoansIndex = 0;
+        for (uint256 i = 0; i < mappedLoanIds.length; i++) {
+            if (mappedLoanIds[i] == 0) {
+                // skip loans that have been deleted
+                continue;
+            }
+            userLoans[userLoansIndex] = loansByID[mappedLoanIds[i]];
+            userLoansIndex++;
+        }
+
+        return userLoans;
+    }
+
+    // associateToLoan associates the given participants to a loan
+    function associateToLoan(uint256 loanId, address[] memory participants) private {
+        for (uint256 i = 0; i < participants.length; i++) {
+            address participant = participants[i];
+            participatingLoans[participant].push(loanId);
+        }
+    }
+
+    // disassociateFromLoan disassociates the given participants from a loan
+    function disassociateFromLoan(uint256 loanId, address[] memory participants) private {
+        for (uint256 i = 0; i < participants.length; i++) {
+            address participant = participants[i];
+            uint256[] memory loans = participatingLoans[participant];
+            for (uint256 j = 0; j < loans.length; j++) {
+                if (loans[j] == loanId) {
+                    delete loans[j];
+                }
+            }
+
+            participatingLoans[participant] = loans;
+        }
     }
 
     struct PersonalLoan {
