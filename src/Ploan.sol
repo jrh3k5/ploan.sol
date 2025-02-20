@@ -150,7 +150,10 @@ contract Ploan {
             return;
         }
 
-        require(loan.lender == msg.sender || loan.borrower == msg.sender, "Only the lender or borrower can cancel a pending loan");
+        require(
+            loan.lender == msg.sender || loan.borrower == msg.sender,
+            "Only the lender or borrower can cancel a pending loan"
+        );
 
         if (loan.started) {
             revert("Loan has already been started and cannot be canceled");
@@ -194,7 +197,7 @@ contract Ploan {
             userLoans[userLoansIndex] = loansByID[mappedLoanIds[i]];
             userLoansIndex++;
         }
-        
+
         return userLoans;
     }
 
