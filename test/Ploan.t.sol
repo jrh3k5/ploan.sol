@@ -19,6 +19,7 @@ contract PloanTest is Test {
         borrower = address(2);
 
         ploan = new Ploan();
+        ploan.initialize();
         token = new PloanTestToken(1000);
 
         token.transfer(lender, 120);

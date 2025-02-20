@@ -2,14 +2,20 @@
 pragma solidity ^0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title A contract for managing personal loans
 /// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
-contract Ploan {
-    uint256 private loanIdBucket = 1;
+contract Ploan is Initializable {
+    uint256 private loanIdBucket;
     mapping(uint256 loanId => PersonalLoan loan) private loansByID;
     mapping(address allowlistOwner => address[] allowlist) private loanProposalAllowlist;
     mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
+    bool initialized;
+
+    function initialize() public initializer {
+        loanIdBucket = 1;
+    }
 
     // allowLoanProposal allows a user to be added to the loan proposal allowlist
     function allowLoanProposal(address toAllow) public {
