@@ -16,6 +16,6 @@ contract UpgradesScript is Script {
 
         // Deploy `Ploan` as a transparent proxy using the Upgrades Plugin
         address transparentProxy =
-            Upgrades.deployTransparentProxy("Ploan.sol", msg.sender, abi.encodeCall(Ploan.initialize, ()));
+            Upgrades.deployTransparentProxy("Ploan", msg.sender, abi.encodeCall(Ploan.initialize, ()));
     }
 }
