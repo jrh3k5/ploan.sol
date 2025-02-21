@@ -1,5 +1,10 @@
 name: CI
 
+env:
+  BASE_SEPOLIA_ETHERSCAN_API_KEY: ${{ secrets.BASE_SEPOLIA_ETHERSCAN_API_KEY }}
+  BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+  FOUNDRY_PROFILE: ci
+
 on:
   push:
     branches: [ main ]
@@ -7,9 +12,6 @@ on:
     # TODO: remove this - this should only run on main, not in pull requests
     branches: [ main ]
   workflow_dispatch:
-
-env:
-  FOUNDRY_PROFILE: ci
 
 jobs:
   check:
@@ -22,9 +24,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-        env:
-            BASE_SEPOLIA_ETHERSCAN_API_KEY: ${{ secrets.BASE_SEPOLIA_ETHERSCAN_API_KEY }}
-            BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
