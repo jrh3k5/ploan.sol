@@ -9,4 +9,11 @@ ast = true
 build_info = true
 extra_output = ["storageLayout"]
 
+# Deployment components
+[etherscan]
+base_sepolia = { url = "https://api.basescan.org/api", key = "${BASE_SEPOLIA_ETHERSCAN_API_KEY}", chain = "84532" }
+
+[rpc_endpoints]
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

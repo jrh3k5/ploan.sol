@@ -7,10 +7,10 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 /// @title A contract for managing personal loans
 /// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract Ploan is Initializable {
-    uint256 private loanIdBucket;
-    mapping(uint256 loanId => PersonalLoan loan) private loansByID;
-    mapping(address allowlistOwner => address[] allowlist) private loanProposalAllowlist;
-    mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
+    uint256 public loanIdBucket;
+    mapping(uint256 loanId => PersonalLoan loan) public loansByID;
+    mapping(address allowlistOwner => address[] allowlist) public loanProposalAllowlist;
+    mapping(address loanParticipant => uint256[] loanIds) public participatingLoans;
     bool initialized;
 
     function initialize() public initializer {
