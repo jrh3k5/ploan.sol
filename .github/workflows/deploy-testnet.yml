@@ -3,6 +3,8 @@ name: CI
 env:
   BASE_SEPOLIA_ETHERSCAN_API_KEY: ${{ secrets.BASE_SEPOLIA_ETHERSCAN_API_KEY }}
   BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+  PRIVATE_KEY: ${{ secrets.TESTNET_DEPLOYER_PRIVATE_KEY }}
+  SENDER: ${{ secrets.TESTNET_SENDER }}
   FOUNDRY_PROFILE: ci
 
 on:
@@ -29,4 +31,4 @@ jobs:
 
       - name: Base Sepolia Testnet Deploy
         run: |
-          forge clean && forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key ${{ secrets.TESTNET_DEPLOYER_PRIVATE_KEY }} --broadcast --verify --sender ${{ secrets.TESTNET_SENDER }}
+          forge clean && forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key $PRIVATE_KEY --broadcast --verify --sender $SENDER
