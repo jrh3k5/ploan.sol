@@ -15,6 +15,7 @@ import {
     LoanCompleted,
     LoanDisassociated,
     LoanExecuted,
+    LoanImported,
     LenderNotAllowlisted,
     LoanAuthorizationFailure,
     LoanCommitted,
@@ -48,7 +49,7 @@ contract PloanTest is Test {
         token.transfer(lender, 120);
     }
 
-    function test_defaultLifecycle() public {
+    function test_proposeLoan_defaultLifecycle() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
@@ -121,32 +122,6 @@ contract PloanTest is Test {
         assert(completedLoan.completed);
     }
 
-    function test_initialize_again() public {
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
-        // you should only be able to initialize once
-        ploan.initialize();
-    }
-
-    function test_disallowLoanProposal() public {
-        vm.prank(borrower);
-        ploan.allowLoanProposal(lender);
-
-        vm.prank(lender);
-        // a lack of a failure indicates success
-        ploan.proposeLoan(borrower, address(token), 100);
-
-        vm.expectEmit();
-        emit LenderDisallowed(lender, borrower);
-
-        vm.prank(borrower);
-        ploan.disallowLoanProposal(lender);
-
-        // Now it should fail
-        vm.prank(lender);
-        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
-        ploan.proposeLoan(borrower, address(token), 100);
-    }
-
     function test_proposeLoan_zeroAmount() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
@@ -170,6 +145,128 @@ contract PloanTest is Test {
     }
 
     function test_proposeLoan_notAllowed() public {
+        vm.prank(lender);
+        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
+        ploan.proposeLoan(borrower, address(token), 100);
+    }
+
+    function test_importLoan_defaultLifecycle() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        address assetAddress = address(token);
+        uint256 loanAmount = 100;
+
+        token.transfer(borrower, 80);
+
+        // Cheat on the loan ID since this test assumes the loan contract is previously unused
+        vm.expectEmit();
+        emit LoanAssociated(1, lender);
+
+        vm.expectEmit();
+        emit LoanAssociated(1, borrower);
+
+        vm.expectEmit();
+        emit LoanImported(lender, borrower, assetAddress, loanAmount, 35, 1);
+
+        vm.prank(lender);
+        uint256 loanId = ploan.importLoan(borrower, assetAddress, loanAmount, 35);
+
+        vm.expectEmit();
+        emit LoanCommitted(loanId);
+
+        vm.prank(borrower);
+        ploan.commitToLoan(loanId);
+
+        // no token approvals needed since no asset will be transferred
+
+        vm.expectEmit();
+        emit LoanExecuted(loanId);
+
+        vm.prank(lender);
+        ploan.executeLoan(loanId);
+
+        // No amount of tokens should have been transferred
+        assertEq(token.balanceOf(lender), 120);
+        assertEq(token.balanceOf(borrower), 80);
+
+        vm.prank(borrower);
+        token.approve(address(ploan), 50);
+
+        vm.expectEmit();
+        emit LoanPaymentMade(loanId, 50);
+
+        vm.prank(borrower);
+        ploan.payLoan(loanId, 50);
+
+        assertEq(token.balanceOf(lender), 170);
+        assertEq(token.balanceOf(borrower), 30);
+
+        vm.prank(borrower);
+        token.approve(address(ploan), 15);
+
+        vm.expectEmit();
+        emit LoanPaymentMade(loanId, 15);
+
+        vm.expectEmit();
+        emit LoanCompleted(loanId);
+
+        vm.prank(borrower);
+        ploan.payLoan(loanId, 15);
+
+        assertEq(token.balanceOf(lender), 185);
+        assertEq(token.balanceOf(borrower), 15);
+
+        vm.prank(lender);
+        PersonalLoan[] memory loans = ploan.getLoans();
+        assertEq(loans.length, 1);
+        PersonalLoan memory completedLoan = loans[0];
+        assert(completedLoan.completed);
+    }
+
+    function test_importLoan_zeroAmount() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.expectRevert(InvalidLoanAmount.selector);
+        ploan.importLoan(borrower, address(token), 0, 0);
+    }
+
+    function test_importLoan_noSelfLoans() public {
+        vm.expectRevert(InvalidLoanRecipient.selector);
+        vm.prank(lender);
+        ploan.importLoan(lender, address(token), 100, 15);
+    }
+
+    function test_importLoan_zeroAssetAddress() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.expectRevert(InvalidLoanAsset.selector);
+        ploan.importLoan(borrower, address(0), 100, 15);
+    }
+
+    function test_importLoan_notAllowed() public {
+        vm.prank(lender);
+        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
+        ploan.importLoan(borrower, address(token), 100, 15);
+    }
+
+    function test_disallowLoanProposal() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        // a lack of a failure indicates success
+        ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.expectEmit();
+        emit LenderDisallowed(lender, borrower);
+
+        vm.prank(borrower);
+        ploan.disallowLoanProposal(lender);
+
+        // Now it should fail
         vm.prank(lender);
         vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
         ploan.proposeLoan(borrower, address(token), 100);

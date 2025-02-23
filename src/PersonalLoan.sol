@@ -24,4 +24,6 @@ struct PersonalLoan {
     bool started;
     /// true if the loan has been executed by the lender, transferring assets to the borrower
     bool repayable;
+    /// true if the loan existed previously and was merely imported into the app
+    bool imported;
 }
