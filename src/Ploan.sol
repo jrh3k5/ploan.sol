@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PersonalLoan} from "./PersonalLoan.sol";
 
 /// @dev raised when an invalid amount is specified for a loan
@@ -46,13 +46,13 @@ contract Ploan is Initializable {
     }
 
     /// @notice initialize the contract
-    function initialize() public initializer {
+    function initialize() external initializer {
         loanIdBucket = 1;
     }
 
     /// @notice allows a user to be added to the loan proposal allowlist
     /// @param toAllow the address to be added
-    function allowLoanProposal(address toAllow) public {
+    function allowLoanProposal(address toAllow) external {
         loanProposalAllowlist[msg.sender].push(toAllow);
     }
 
@@ -61,7 +61,7 @@ contract Ploan is Initializable {
     /// @param loanedAsset the address of the loaned asset being loaned
     /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
     /// @return the ID of the proposed loan
-    function proposeLoan(address borrower, address loanedAsset, uint256 totalAmount) public returns (uint256) {
+    function proposeLoan(address borrower, address loanedAsset, uint256 totalAmount) external returns (uint256) {
         if (totalAmount == 0) {
             revert InvalidLoanAmount();
         }
@@ -111,7 +111,7 @@ contract Ploan is Initializable {
 
     /// @notice commits the sender (who is the borrower) to the loan, signaling that they wish to proceed with the loan
     /// @param loanId the ID of the loan
-    function commitToLoan(uint256 loanId) public {
+    function commitToLoan(uint256 loanId) external {
         PersonalLoan memory loan = loansByID[loanId];
         if (loan.borrower != msg.sender) {
             revert LoanAuthorizationFailure();
@@ -128,7 +128,7 @@ contract Ploan is Initializable {
 
     /// @notice removes an address from the loan proposal allowlist for the current user, which disallows that address from proposing loans to the sender to borrow
     /// @param toDisallow the address to be removed
-    function disallowLoanProposal(address toDisallow) public {
+    function disallowLoanProposal(address toDisallow) external {
         address[] memory allowlist = loanProposalAllowlist[msg.sender];
         uint256 allowlistLength = allowlist.length;
         if (allowlistLength == 0) {
@@ -147,7 +147,7 @@ contract Ploan is Initializable {
 
     /// @notice executes a loan, transferring the asset from the lender to the borrower
     /// @param loanId the ID of the loan
-    function executeLoan(uint256 loanId) public {
+    function executeLoan(uint256 loanId) external {
         PersonalLoan memory loan = loansByID[loanId];
         if (loan.lender != msg.sender) {
             revert LoanAuthorizationFailure();
@@ -171,7 +171,7 @@ contract Ploan is Initializable {
 
     /// @notice cancels a loan
     /// @param loanId the ID of the loan
-    function cancelLoan(uint256 loanId) public {
+    function cancelLoan(uint256 loanId) external {
         PersonalLoan memory loan = loansByID[loanId];
         if (loan.lender != msg.sender) {
             revert LoanAuthorizationFailure();
@@ -190,7 +190,7 @@ contract Ploan is Initializable {
     /// @notice executes a repayment of a loan
     /// @param loanId the ID of the loan
     /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
-    function payLoan(uint256 loanId, uint256 amount) public {
+    function payLoan(uint256 loanId, uint256 amount) external {
         PersonalLoan memory loan = loansByID[loanId];
         if (!loan.repayable) {
             revert InvalidLoanState();
@@ -214,7 +214,7 @@ contract Ploan is Initializable {
 
     /// @notice cancels a loan that has not yet been executed
     /// @param loanId the ID of the loan
-    function cancelPendingLoan(uint256 loanId) public {
+    function cancelPendingLoan(uint256 loanId) external {
         PersonalLoan memory loan = loansByID[loanId];
 
         if (loan.lender != msg.sender && loan.borrower != msg.sender) {
