@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {Ploan} from "../src/Ploan.sol";
+import {Ploan, LenderNotAllowlisted} from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
@@ -91,7 +91,7 @@ contract PloanTest is Test {
 
         // Now it should fail
         vm.prank(lender);
-        vm.expectRevert("Lender is not allowed to propose a loan");
+        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
         ploan.proposeLoan(borrower, address(token), 100);
     }
 
@@ -128,7 +128,7 @@ contract PloanTest is Test {
 
     function test_proposeLoan_notAllowed() public {
         vm.prank(lender);
-        vm.expectRevert("Lender is not allowed to propose a loan");
+        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
         ploan.proposeLoan(borrower, address(token), 100);
     }
 

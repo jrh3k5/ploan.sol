@@ -4,6 +4,10 @@ pragma solidity 0.8.28;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+/// @notice LenderNowAllowlisted is raised when a lender is not allowlisted to propose a loan to a user
+/// @param lender the address of the lender
+error LenderNotAllowlisted(address lender);
+
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
 /// @custom:security-contact 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
@@ -59,7 +63,11 @@ contract Ploan is Initializable {
             }
         }
 
-        require(isAllowlisted, "Lender is not allowed to propose a loan");
+        if (!isAllowlisted) {
+            revert LenderNotAllowlisted({
+                lender: msg.sender
+            });
+        }
 
         uint256 loanId = loanIdBucket;
         loanIdBucket++;
