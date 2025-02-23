@@ -18,6 +18,11 @@ contract Ploan is Initializable {
     /// @notice whether the contract has been initialized
     bool private initialized;
 
+    /// constructor; disables initializer
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice initialize the contract
     function initialize() public initializer {
         require(!initialized, "Contract has already been initialized");

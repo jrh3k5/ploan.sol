@@ -4,12 +4,13 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {Ploan} from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title A simple ERC20 for testing purposes.
 /// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract PloanTest is Test {
-    Ploan public ploan;
-    PloanTestToken public token;
+    Ploan private ploan;
+    PloanTestToken private token;
 
     address internal lender;
     address internal borrower;
@@ -18,8 +19,9 @@ contract PloanTest is Test {
         lender = address(1);
         borrower = address(2);
 
-        ploan = new Ploan();
-        ploan.initialize();
+        address implementation = address(new Ploan());
+        address proxy = UnsafeUpgrades.deployUUPSProxy(implementation, abi.encodeCall(Ploan.initialize, ()));
+        ploan = Ploan(proxy);
 
         token = new PloanTestToken(1000);
         token.transfer(lender, 120);
