@@ -12,6 +12,7 @@ import {
     LenderNotAllowlisted,
     LoanAuthorizationFailure
 } from "../src/Ploan.sol";
+import {PersonalLoan} from "../src/PersonalLoan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
 import {UnsafeUpgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
@@ -76,9 +77,9 @@ contract PloanTest is Test {
         assertEq(token.balanceOf(borrower), 0);
 
         vm.prank(lender);
-        Ploan.PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans();
         assertEq(loans.length, 1);
-        Ploan.PersonalLoan memory completedLoan = loans[0];
+        PersonalLoan memory completedLoan = loans[0];
         assert(completedLoan.completed);
     }
 
@@ -192,9 +193,9 @@ contract PloanTest is Test {
         ploan.cancelLoan(loanId);
 
         vm.prank(borrower);
-        Ploan.PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans();
         assertEq(loans.length, 1);
-        Ploan.PersonalLoan memory canceledLoan = loans[0];
+        PersonalLoan memory canceledLoan = loans[0];
 
         assert(canceledLoan.canceled);
         assert(!canceledLoan.repayable);
@@ -347,12 +348,12 @@ contract PloanTest is Test {
 
         // The loan should not be in the mappings for either the borrow or lender
         vm.prank(borrower);
-        Ploan.PersonalLoan[] memory borrowerLoans = ploan.getLoans();
+        PersonalLoan[] memory borrowerLoans = ploan.getLoans();
         assertEq(borrowerLoans[0].loanId, retainableLoanID);
         assertEq(borrowerLoans.length, 1);
 
         vm.prank(lender);
-        Ploan.PersonalLoan[] memory lenderLoans = ploan.getLoans();
+        PersonalLoan[] memory lenderLoans = ploan.getLoans();
         assertEq(lenderLoans.length, 1);
         assertEq(lenderLoans[0].loanId, retainableLoanID);
     }
