@@ -20,8 +20,8 @@ contract PloanTest is Test {
 
         ploan = new Ploan();
         ploan.initialize();
-        token = new PloanTestToken(1000);
 
+        token = new PloanTestToken(1000);
         token.transfer(lender, 120);
     }
 
@@ -68,6 +68,12 @@ contract PloanTest is Test {
         assertEq(loans.length, 1);
         Ploan.PersonalLoan memory completedLoan = loans[0];
         assert(completedLoan.completed);
+    }
+
+    function test_initialize_again() public {
+        vm.expectRevert();
+        // you should only be able to initialize once
+        ploan.initialize();
     }
 
     function test_disallowLoanProposal() public {
