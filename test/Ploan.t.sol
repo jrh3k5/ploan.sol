@@ -2,9 +2,20 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {Ploan} from "../src/Ploan.sol";
+import {
+    Ploan,
+    InvalidLoanAmount,
+    InvalidLoanAsset,
+    InvalidLoanRecipient,
+    InvalidLoanState,
+    InvalidPaymentAmount,
+    LenderNotAllowlisted,
+    LoanAuthorizationFailure
+} from "../src/Ploan.sol";
+import {PersonalLoan} from "../src/PersonalLoan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {UnsafeUpgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 
 /// @title A simple ERC20 for testing purposes.
 /// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
@@ -66,14 +77,14 @@ contract PloanTest is Test {
         assertEq(token.balanceOf(borrower), 0);
 
         vm.prank(lender);
-        Ploan.PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans();
         assertEq(loans.length, 1);
-        Ploan.PersonalLoan memory completedLoan = loans[0];
+        PersonalLoan memory completedLoan = loans[0];
         assert(completedLoan.completed);
     }
 
     function test_initialize_again() public {
-        vm.expectRevert();
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
         // you should only be able to initialize once
         ploan.initialize();
     }
@@ -91,7 +102,7 @@ contract PloanTest is Test {
 
         // Now it should fail
         vm.prank(lender);
-        vm.expectRevert("Lender is not allowed to propose a loan");
+        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
         ploan.proposeLoan(borrower, address(token), 100);
     }
 
@@ -99,12 +110,12 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
-        vm.expectRevert("Total amount must be greater than 0");
+        vm.expectRevert(InvalidLoanAmount.selector);
         ploan.proposeLoan(borrower, address(token), 0);
     }
 
     function test_proposeLoan_noSelfLoans() public {
-        vm.expectRevert("Borrower cannot be the lender");
+        vm.expectRevert(InvalidLoanRecipient.selector);
         vm.prank(lender);
         ploan.proposeLoan(lender, address(token), 100);
     }
@@ -113,22 +124,13 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
-        vm.expectRevert("Loaned asset cannot be zero address");
+        vm.expectRevert(InvalidLoanAsset.selector);
         ploan.proposeLoan(borrower, address(0), 100);
-    }
-
-    function test_proposeLoan_insufficientLenderBalance() public {
-        vm.prank(borrower);
-        ploan.allowLoanProposal(lender);
-
-        vm.expectRevert("Lender does not have enough balance");
-        vm.prank(lender);
-        ploan.proposeLoan(borrower, address(token), 1000);
     }
 
     function test_proposeLoan_notAllowed() public {
         vm.prank(lender);
-        vm.expectRevert("Lender is not allowed to propose a loan");
+        vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
         ploan.proposeLoan(borrower, address(token), 100);
     }
 
@@ -139,7 +141,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
-        vm.expectRevert("Only the borrower can commit to the loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.commitToLoan(loanId);
     }
 
@@ -164,7 +166,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
-        vm.expectRevert("Only the lender can execute the loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.executeLoan(loanId);
     }
 
@@ -176,7 +178,7 @@ contract PloanTest is Test {
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(lender);
-        vm.expectRevert("Borrower has not committed to the loan");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.executeLoan(loanId);
     }
 
@@ -191,9 +193,9 @@ contract PloanTest is Test {
         ploan.cancelLoan(loanId);
 
         vm.prank(borrower);
-        Ploan.PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans();
         assertEq(loans.length, 1);
-        Ploan.PersonalLoan memory canceledLoan = loans[0];
+        PersonalLoan memory canceledLoan = loans[0];
 
         assert(canceledLoan.canceled);
         assert(!canceledLoan.repayable);
@@ -206,7 +208,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
-        vm.expectRevert("Only the lender can cancel the loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.cancelLoan(loanId);
     }
 
@@ -245,7 +247,7 @@ contract PloanTest is Test {
         assertEq(token.balanceOf(lender), 20);
         assertEq(token.balanceOf(borrower), 100);
 
-        vm.expectRevert("Amount must be greater than 0");
+        vm.expectRevert(InvalidPaymentAmount.selector);
         vm.prank(borrower);
         ploan.payLoan(loanId, 0);
     }
@@ -270,7 +272,7 @@ contract PloanTest is Test {
         ploan.cancelLoan(loanId);
 
         vm.prank(borrower);
-        vm.expectRevert("Loan is not repayable");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.payLoan(loanId, 100);
     }
 
@@ -301,7 +303,7 @@ contract PloanTest is Test {
         ploan.payLoan(loanId, 100);
 
         vm.prank(borrower);
-        vm.expectRevert("Loan is not repayable");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.payLoan(loanId, 20);
     }
 
@@ -326,7 +328,7 @@ contract PloanTest is Test {
         ploan.executeLoan(loanId);
 
         vm.prank(borrower);
-        vm.expectRevert("Total amount repaid must be less than or equal to total amount loaned");
+        vm.expectRevert(InvalidPaymentAmount.selector);
         ploan.payLoan(loanId, 120);
     }
 
@@ -346,12 +348,12 @@ contract PloanTest is Test {
 
         // The loan should not be in the mappings for either the borrow or lender
         vm.prank(borrower);
-        Ploan.PersonalLoan[] memory borrowerLoans = ploan.getLoans();
+        PersonalLoan[] memory borrowerLoans = ploan.getLoans();
         assertEq(borrowerLoans[0].loanId, retainableLoanID);
         assertEq(borrowerLoans.length, 1);
 
         vm.prank(lender);
-        Ploan.PersonalLoan[] memory lenderLoans = ploan.getLoans();
+        PersonalLoan[] memory lenderLoans = ploan.getLoans();
         assertEq(lenderLoans.length, 1);
         assertEq(lenderLoans[0].loanId, retainableLoanID);
     }
@@ -373,7 +375,7 @@ contract PloanTest is Test {
         ploan.executeLoan(loanId);
 
         vm.prank(borrower);
-        vm.expectRevert("Loan has already been started and cannot be canceled");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.cancelPendingLoan(loanId);
     }
 
@@ -385,7 +387,7 @@ contract PloanTest is Test {
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(address(3));
-        vm.expectRevert("Only the lender or borrower can cancel a pending loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.cancelPendingLoan(loanId);
     }
 }

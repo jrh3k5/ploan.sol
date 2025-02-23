@@ -3,6 +3,29 @@ pragma solidity 0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {PersonalLoan} from "./PersonalLoan.sol";
+
+/// @dev raised when an invalid amount is specified for a loan
+error InvalidLoanAmount();
+
+/// @dev raised when the assert in a loan is invalid
+error InvalidLoanAsset();
+
+/// @dev raised when the recipient of a loan is invalid
+error InvalidLoanRecipient();
+
+/// @dev raised when the loan state is not in a valid state to perform a particular action
+error InvalidLoanState();
+
+/// @dev raised if a payment amount is not a valid amount
+error InvalidPaymentAmount();
+
+/// @dev raised when a lender is not allowlisted to propose a loan to a user
+/// @param lender the address of the lender
+error LenderNotAllowlisted(address lender);
+
+/// @dev raised when there is an authorization failure accessing a loan
+error LoanAuthorizationFailure();
 
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
@@ -16,8 +39,6 @@ contract Ploan is Initializable {
     mapping(address allowlistOwner => address[] allowlist) private loanProposalAllowlist;
     /// @notice all of the loan participants
     mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
-    /// @notice whether the contract has been initialized
-    bool private initialized;
 
     /// constructor; disables initializer
     constructor() {
@@ -26,11 +47,7 @@ contract Ploan is Initializable {
 
     /// @notice initialize the contract
     function initialize() public initializer {
-        require(!initialized, "Contract has already been initialized");
-
         loanIdBucket = 1;
-
-        initialized = true;
     }
 
     /// @notice allows a user to be added to the loan proposal allowlist
@@ -45,9 +62,17 @@ contract Ploan is Initializable {
     /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
     /// @return the ID of the proposed loan
     function proposeLoan(address borrower, address loanedAsset, uint256 totalAmount) public returns (uint256) {
-        require(totalAmount > 0, "Total amount must be greater than 0");
-        require(borrower != msg.sender, "Borrower cannot be the lender");
-        require(loanedAsset != address(0), "Loaned asset cannot be zero address");
+        if (totalAmount == 0) {
+            revert InvalidLoanAmount();
+        }
+
+        if (borrower == msg.sender) {
+            revert InvalidLoanRecipient();
+        }
+
+        if (loanedAsset == address(0)) {
+            revert InvalidLoanAsset();
+        }
 
         bool isAllowlisted;
         uint256 loanCount = loanProposalAllowlist[borrower].length;
@@ -59,13 +84,12 @@ contract Ploan is Initializable {
             }
         }
 
-        require(isAllowlisted, "Lender is not allowed to propose a loan");
+        if (!isAllowlisted) {
+            revert LenderNotAllowlisted({lender: msg.sender});
+        }
 
         uint256 loanId = loanIdBucket;
         loanIdBucket++;
-
-        uint256 lenderBalance = ERC20(loanedAsset).balanceOf(msg.sender);
-        require(lenderBalance >= totalAmount, "Lender does not have enough balance");
 
         PersonalLoan memory newLoan;
         newLoan.loanId = loanId;
@@ -89,7 +113,9 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function commitToLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.borrower == msg.sender, "Only the borrower can commit to the loan");
+        if (loan.borrower != msg.sender) {
+            revert LoanAuthorizationFailure();
+        }
 
         if (loan.borrowerCommitted) {
             return;
@@ -123,8 +149,13 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function executeLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.lender == msg.sender, "Only the lender can execute the loan");
-        require(loan.borrowerCommitted, "Borrower has not committed to the loan");
+        if (loan.lender != msg.sender) {
+            revert LoanAuthorizationFailure();
+        }
+
+        if (!loan.borrowerCommitted) {
+            revert InvalidLoanState();
+        }
 
         if (loan.started) {
             return;
@@ -142,7 +173,9 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function cancelLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.lender == msg.sender, "Only the lender can cancel the loan");
+        if (loan.lender != msg.sender) {
+            revert LoanAuthorizationFailure();
+        }
 
         if (loan.canceled) {
             return;
@@ -159,12 +192,13 @@ contract Ploan is Initializable {
     /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
     function payLoan(uint256 loanId, uint256 amount) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.repayable, "Loan is not repayable");
-        require(amount > 0, "Amount must be greater than 0");
-        require(
-            loan.totalAmountRepaid + amount <= loan.totalAmountLoaned,
-            "Total amount repaid must be less than or equal to total amount loaned"
-        );
+        if (!loan.repayable) {
+            revert InvalidLoanState();
+        }
+
+        if (amount == 0 || loan.totalAmountRepaid + amount > loan.totalAmountLoaned) {
+            revert InvalidPaymentAmount();
+        }
 
         ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
 
@@ -182,17 +216,13 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function cancelPendingLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        if (loan.loanId == 0) {
-            return;
+
+        if (loan.lender != msg.sender && loan.borrower != msg.sender) {
+            revert LoanAuthorizationFailure();
         }
 
-        require(
-            loan.lender == msg.sender || loan.borrower == msg.sender,
-            "Only the lender or borrower can cancel a pending loan"
-        );
-
         if (loan.started) {
-            revert("Loan has already been started and cannot be canceled");
+            revert InvalidLoanState();
         }
 
         address[] memory participants = new address[](2);
@@ -268,30 +298,4 @@ contract Ploan is Initializable {
             participatingLoans[participant] = loans;
         }
     }
-
-    /// @dev represents a loan
-    struct PersonalLoan {
-        uint256 loanId;
-        /// the ID of the loan
-        uint256 totalAmountLoaned;
-        /// the total amount of the asset that was loaned
-        uint256 totalAmountRepaid;
-        /// the total amount of the asset that has been repaid
-        address borrower;
-        /// the address to whom the amount is loaned
-        address lender;
-        /// the address that loaned the asset
-        address loanedAsset;
-        /// the address of the loaned asset
-        bool borrowerCommitted;
-        /// true if the borrower has committed the loan; the loan has not necessarily been executed yet
-        bool canceled;
-        /// true if the loan was canceled before it could be executed
-        bool completed;
-        /// true if the loan has been fully paid off
-        bool started;
-        /// true if the loan has been executed by the lender, transferring assets to the borrower
-        bool repayable;
-    }
-    /// true if the loan can be repaid
 }
