@@ -1,33 +1,48 @@
-// SPDX-License-Identifier: Apache-2.0
+/// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @title A contract for managing personal loans
-/// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
+//// @title A contract for managing personal loans
+//// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract Ploan is Initializable {
+    /// @notice the ID of the next loan
     uint256 public loanIdBucket;
+    /// @notice all of the loans
     mapping(uint256 loanId => PersonalLoan loan) public loansByID;
+    /// @notice all of the loan proposal allowlists
     mapping(address allowlistOwner => address[] allowlist) public loanProposalAllowlist;
+    /// @notice all of the loan participants
     mapping(address loanParticipant => uint256[] loanIds) public participatingLoans;
+    /// @notice whether the contract has been initialized
     bool initialized;
 
-    function initialize() public initializer {
-        loanIdBucket = 1;
+    /// @notice constructor
+    constructor() {
+        _disableInitializers();
     }
 
-    // @notice allows a user to be added to the loan proposal allowlist
-    // @param toAllow the address to be added
+    /// @notice initialize the contract
+    function initialize() public initializer {
+        require(!initialized, "Contract has already been initialized");
+
+        loanIdBucket = 1;
+
+        initialized = true;
+    }
+
+    /// @notice allows a user to be added to the loan proposal allowlist
+    /// @param toAllow the address to be added
     function allowLoanProposal(address toAllow) public {
         loanProposalAllowlist[msg.sender].push(toAllow);
     }
 
-    // @notice creates a loan and returns the loan ID
-    // @param borrower the address of the borrower who is going to borrow the asset
-    // @param loanedAsset the address of the loaned asset being loaned
-    // @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
-    // @returns the ID of the proposed loan
+    /// @notice creates a loan and returns the loan ID
+    /// @param borrower the address of the borrower who is going to borrow the asset
+    /// @param loanedAsset the address of the loaned asset being loaned
+    /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @return the ID of the proposed loan
     function proposeLoan(address borrower, address loanedAsset, uint256 totalAmount) public returns (uint256) {
         require(totalAmount > 0, "Total amount must be greater than 0");
         require(borrower != msg.sender, "Borrower cannot be the lender");
@@ -68,8 +83,8 @@ contract Ploan is Initializable {
         return loanId;
     }
 
-    // @notice commits the sender (who is the borrower) to the loan, signaling that they wish to proceed with the loan
-    // @param loanId the ID of the loan
+    /// @notice commits the sender (who is the borrower) to the loan, signaling that they wish to proceed with the loan
+    /// @param loanId the ID of the loan
     function commitToLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
         require(loan.borrower == msg.sender, "Only the borrower can commit to the loan");
@@ -83,8 +98,8 @@ contract Ploan is Initializable {
         loansByID[loanId] = loan;
     }
 
-    // @notice removes an address from the loan proposal allowlist for the current user, which disallows that address from proposing loans to the sender to borrow
-    // @param toDisallow the address to be removed
+    /// @notice removes an address from the loan proposal allowlist for the current user, which disallows that address from proposing loans to the sender to borrow
+    /// @param toDisallow the address to be removed
     function disallowLoanProposal(address toDisallow) public {
         address[] memory allowlist = loanProposalAllowlist[msg.sender];
         if (allowlist.length == 0) {
@@ -101,8 +116,8 @@ contract Ploan is Initializable {
         loanProposalAllowlist[msg.sender] = allowlist;
     }
 
-    // @notice executes a loan, transferring the asset from the lender to the borrower
-    // @param loanId the ID of the loan
+    /// @notice executes a loan, transferring the asset from the lender to the borrower
+    /// @param loanId the ID of the loan
     function executeLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
         require(loan.lender == msg.sender, "Only the lender can execute the loan");
@@ -120,8 +135,8 @@ contract Ploan is Initializable {
         loansByID[loanId] = loan;
     }
 
-    // @notice cancels a loan
-    // @param loanId the ID of the loan
+    /// @notice cancels a loan
+    /// @param loanId the ID of the loan
     function cancelLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
         require(loan.lender == msg.sender, "Only the lender can cancel the loan");
@@ -136,9 +151,9 @@ contract Ploan is Initializable {
         loansByID[loanId] = loan;
     }
 
-    // @notice executes a repayment of a loan
-    // @param loanId the ID of the loan
-    // @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @notice executes a repayment of a loan
+    /// @param loanId the ID of the loan
+    /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
     function payLoan(uint256 loanId, uint256 amount) public {
         PersonalLoan memory loan = loansByID[loanId];
         require(loan.repayable, "Loan is not repayable");
@@ -160,8 +175,8 @@ contract Ploan is Initializable {
         loansByID[loanId] = loan;
     }
 
-    // @notice cancels a loan that has not yet been executed
-    // @param loanId the ID of the loan
+    /// @notice cancels a loan that has not yet been executed
+    /// @param loanId the ID of the loan
     function cancelPendingLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
         if (loan.loanId == 0) {
@@ -185,8 +200,8 @@ contract Ploan is Initializable {
         delete loansByID[loanId];
     }
 
-    // @notice gets all of the loans for the sender
-    // @return all of the loans for the sender
+    /// @notice gets all of the loans for the sender
+    /// @return all of the loans for the sender
     function getLoans() external view returns (PersonalLoan[] memory) {
         uint256[] memory mappedLoanIds = participatingLoans[msg.sender];
         if (mappedLoanIds.length == 0) {
@@ -210,7 +225,7 @@ contract Ploan is Initializable {
         uint256 userLoansIndex = 0;
         for (uint256 i = 0; i < mappedLoanIds.length; i++) {
             if (mappedLoanIds[i] == 0) {
-                // skip loans that have been deleted
+                /// skip loans that have been deleted
                 continue;
             }
             userLoans[userLoansIndex] = loansByID[mappedLoanIds[i]];
@@ -220,9 +235,9 @@ contract Ploan is Initializable {
         return userLoans;
     }
 
-    // @notice associates the given participants to a loan, faciliating indexed lookups in the future
-    // @param loanId the ID of the loan
-    // @param participants the participants to be associated
+    /// @notice associates the given participants to a loan, faciliating indexed lookups in the future
+    /// @param loanId the ID of the loan
+    /// @param participants the participants to be associated
     function associateToLoan(uint256 loanId, address[] memory participants) private {
         for (uint256 i = 0; i < participants.length; i++) {
             address participant = participants[i];
@@ -230,9 +245,9 @@ contract Ploan is Initializable {
         }
     }
 
-    // @notice disassociates the given participants from a loan
-    // @param loanId the ID of the loan
-    // @param participants the participants to be disassociated
+    /// @notice disassociates the given participants from a loan
+    /// @param loanId the ID of the loan
+    /// @param participants the participants to be disassociated
     function disassociateFromLoan(uint256 loanId, address[] memory participants) private {
         for (uint256 i = 0; i < participants.length; i++) {
             address participant = participants[i];
@@ -247,17 +262,18 @@ contract Ploan is Initializable {
         }
     }
 
+    /// @dev represents a loan
     struct PersonalLoan {
-        uint256 loanId; // the ID of the loan
-        uint256 totalAmountLoaned; // the total amount of the asset that was loaned
-        uint256 totalAmountRepaid; // the total amount of the asset that has been repaid
-        address borrower; // the address to whom the amount is loaned
-        address lender; // the address that loaned the asset
-        address loanedAsset; // the address of the loaned asset
-        bool borrowerCommitted; // true if the borrower has committed the loan; the loan has not necessarily been executed yet
-        bool canceled; // true if the loan was canceled before it could be executed
-        bool completed; // true if the loan has been fully paid off
-        bool started; // true if the loan has been executed by the lender, transferring assets to the borrower
-        bool repayable; // true if the loan can be repaid
+        uint256 loanId; /// the ID of the loan
+        uint256 totalAmountLoaned; /// the total amount of the asset that was loaned
+        uint256 totalAmountRepaid; /// the total amount of the asset that has been repaid
+        address borrower; /// the address to whom the amount is loaned
+        address lender; /// the address that loaned the asset
+        address loanedAsset; /// the address of the loaned asset
+        bool borrowerCommitted; /// true if the borrower has committed the loan; the loan has not necessarily been executed yet
+        bool canceled; /// true if the loan was canceled before it could be executed
+        bool completed; /// true if the loan has been fully paid off
+        bool started; /// true if the loan has been executed by the lender, transferring assets to the borrower
+        bool repayable; /// true if the loan can be repaid
     }
 }
