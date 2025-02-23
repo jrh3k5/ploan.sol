@@ -4,9 +4,18 @@ pragma solidity 0.8.28;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @notice raised when a lender is not allowlisted to propose a loan to a user
+/// @dev raised when a lender is not allowlisted to propose a loan to a user
 /// @param lender the address of the lender
 error LenderNotAllowlisted(address lender);
+
+/// @dev raised when an invalid amount is specified for a loan.
+error InvalidLoanAmount();
+
+/// @dev raised when the assert in a loan is invalid.
+error InvalidLoanAsset();
+
+/// @dev raised when the recipient of a loan is invalid.
+error InvalidLoanRecipient();
 
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
@@ -43,9 +52,17 @@ contract Ploan is Initializable {
     /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
     /// @return the ID of the proposed loan
     function proposeLoan(address borrower, address loanedAsset, uint256 totalAmount) public returns (uint256) {
-        require(totalAmount > 0, "Total amount must be greater than 0");
-        require(borrower != msg.sender, "Borrower cannot be the lender");
-        require(loanedAsset != address(0), "Loaned asset cannot be zero address");
+        if (totalAmount == 0) {
+            revert InvalidLoanAmount();
+        }
+
+        if (borrower == msg.sender) {
+            revert InvalidLoanRecipient();
+        }
+
+        if (loanedAsset == address(0)) {
+            revert InvalidLoanAsset();
+        }
 
         bool isAllowlisted;
         uint256 loanCount = loanProposalAllowlist[borrower].length;

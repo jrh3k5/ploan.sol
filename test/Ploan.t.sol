@@ -2,7 +2,9 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {Ploan, LenderNotAllowlisted} from "../src/Ploan.sol";
+import {
+    Ploan, InvalidLoanAmount, InvalidLoanAsset, InvalidLoanRecipient, LenderNotAllowlisted
+} from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
 import {UnsafeUpgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
@@ -100,12 +102,12 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
-        vm.expectRevert("Total amount must be greater than 0");
+        vm.expectRevert(InvalidLoanAmount.selector);
         ploan.proposeLoan(borrower, address(token), 0);
     }
 
     function test_proposeLoan_noSelfLoans() public {
-        vm.expectRevert("Borrower cannot be the lender");
+        vm.expectRevert(InvalidLoanRecipient.selector);
         vm.prank(lender);
         ploan.proposeLoan(lender, address(token), 100);
     }
@@ -114,7 +116,7 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
-        vm.expectRevert("Loaned asset cannot be zero address");
+        vm.expectRevert(InvalidLoanAsset.selector);
         ploan.proposeLoan(borrower, address(0), 100);
     }
 
