@@ -9,8 +9,18 @@ import {
     InvalidLoanRecipient,
     InvalidLoanState,
     InvalidPaymentAmount,
+    LenderDisallowed,
+    LoanAssociated,
+    LoanCanceled,
+    LoanCompleted,
+    LoanDisassociated,
+    LoanExecuted,
     LenderNotAllowlisted,
-    LoanAuthorizationFailure
+    LoanAuthorizationFailure,
+    LoanCommitted,
+    LoanPaymentMade,
+    LoanProposed,
+    PendingLoanCanceled
 } from "../src/Ploan.sol";
 import {PersonalLoan} from "../src/PersonalLoan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
@@ -42,14 +52,33 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
+        address assetAddress = address(token);
+        uint256 loanAmount = 100;
+
+        // Cheat on the loan ID since this test assumes the loan contract is previously unused
+        vm.expectEmit();
+        emit LoanAssociated(1, lender);
+
+        vm.expectEmit();
+        emit LoanAssociated(1, borrower);
+
+        vm.expectEmit();
+        emit LoanProposed(lender, borrower, assetAddress, loanAmount, 1);
+
         vm.prank(lender);
-        uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+        uint256 loanId = ploan.proposeLoan(borrower, assetAddress, loanAmount);
+
+        vm.expectEmit();
+        emit LoanCommitted(loanId);
 
         vm.prank(borrower);
         ploan.commitToLoan(loanId);
 
         vm.prank(lender);
         token.approve(address(ploan), 100);
+
+        vm.expectEmit();
+        emit LoanExecuted(loanId);
 
         vm.prank(lender);
         ploan.executeLoan(loanId);
@@ -61,6 +90,9 @@ contract PloanTest is Test {
         vm.prank(borrower);
         token.approve(address(ploan), 50);
 
+        vm.expectEmit();
+        emit LoanPaymentMade(loanId, 50);
+
         vm.prank(borrower);
         ploan.payLoan(loanId, 50);
 
@@ -69,6 +101,12 @@ contract PloanTest is Test {
 
         vm.prank(borrower);
         token.approve(address(ploan), 50);
+
+        vm.expectEmit();
+        emit LoanPaymentMade(loanId, 50);
+
+        vm.expectEmit();
+        emit LoanCompleted(loanId);
 
         vm.prank(borrower);
         ploan.payLoan(loanId, 50);
@@ -96,6 +134,9 @@ contract PloanTest is Test {
         vm.prank(lender);
         // a lack of a failure indicates success
         ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.expectEmit();
+        emit LenderDisallowed(lender, borrower);
 
         vm.prank(borrower);
         ploan.disallowLoanProposal(lender);
@@ -188,6 +229,9 @@ contract PloanTest is Test {
 
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.expectEmit();
+        emit LoanCanceled(loanId);
 
         vm.prank(lender);
         ploan.cancelLoan(loanId);
@@ -342,6 +386,15 @@ contract PloanTest is Test {
         // Propose another loan that should not be cleared out by the cancel task
         vm.prank(lender);
         uint256 retainableLoanID = ploan.proposeLoan(borrower, address(token), 5);
+
+        vm.expectEmit();
+        emit LoanDisassociated(loanId, lender);
+
+        vm.expectEmit();
+        emit LoanDisassociated(loanId, borrower);
+
+        vm.expectEmit();
+        emit PendingLoanCanceled(loanId);
 
         vm.prank(borrower);
         ploan.cancelPendingLoan(loanId);
