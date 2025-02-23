@@ -1,0 +1,5 @@
+{
+    "contract_inspector": {
+        "exclude_rules": ["state-updated-without-event"]
+    }
+}
