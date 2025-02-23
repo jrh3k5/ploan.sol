@@ -37,3 +37,8 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: forge coverage
+        run: |
+          script/coverage.sh
+        id: coverage
