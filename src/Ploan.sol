@@ -8,34 +8,36 @@ import {PersonalLoan} from "./PersonalLoan.sol";
 /// events
 
 /// @dev emitted every time a user is removed from another user's allowlist
-event LenderDisallowed(address lender, address allowlistOwner);
+event LenderDisallowed(address indexed lender, address indexed allowlistOwner);
 
 /// @dev emitted every time a user is associated to a loan
-event LoanAssociated(uint256 loanId, address user);
+event LoanAssociated(uint256 indexed loanId, address indexed user);
 
 /// @dev emitted when a loan is canceled
-event LoanCanceled(uint256 loanId);
+event LoanCanceled(uint256 indexed loanId);
 
 /// @dev emitted when a borrower commits to a loan
-event LoanCommitted(uint256 loanId);
+event LoanCommitted(uint256 indexed loanId);
 
 /// @dev emitted when a loan is completely repaid.
-event LoanCompleted(uint256 loanId);
+event LoanCompleted(uint256 indexed loanId);
 
 /// @dev emitted every time a user is disassociated from a loan
-event LoanDisassociated(uint256 loanId, address user);
+event LoanDisassociated(uint256 indexed loanId, address indexed user);
 
 /// @dev emitted when a loan is executed by the lender.
-event LoanExecuted(uint256 loanId);
+event LoanExecuted(uint256 indexed loanId);
 
 /// @dev emitted when a loan payment is made.
-event LoanPaymentMade(uint256 loanId, uint256 amount);
+event LoanPaymentMade(uint256 indexed loanId, uint256 amount);
 
 /// @dev emitted when a loan is proposed
-event LoanProposed(address lender, address borrower, address asset, uint256 amount, uint256 loanId);
+event LoanProposed(
+    address indexed lender, address indexed borrower, address indexed asset, uint256 amount, uint256 loanId
+);
 
 /// @dev emitted when a pending loan is canceled
-event PendingLoanCanceled(uint256 loanId);
+event PendingLoanCanceled(uint256 indexed loanId);
 
 /// errors
 
