@@ -49,7 +49,8 @@ contract Ploan is Initializable {
         require(loanedAsset != address(0), "Loaned asset cannot be zero address");
 
         bool isAllowlisted = false;
-        for (uint256 i = 0; i < loanProposalAllowlist[borrower].length; i++) {
+        uint256 loanCount = loanProposalAllowlist[borrower].length;
+        for (uint256 i = 0; i < loanCount; i++) {
             if (loanProposalAllowlist[borrower][i] == msg.sender) {
                 isAllowlisted = true;
 
@@ -102,14 +103,15 @@ contract Ploan is Initializable {
     /// @param toDisallow the address to be removed
     function disallowLoanProposal(address toDisallow) public {
         address[] memory allowlist = loanProposalAllowlist[msg.sender];
-        if (allowlist.length == 0) {
+        uint256 allowlistLength = allowlist.length;
+        if (allowlistLength == 0) {
             return;
         }
 
-        for (uint256 i = 0; i < allowlist.length; i++) {
+        for (uint256 i = 0; i < allowlistLength; i++) {
             if (allowlist[i] == toDisallow) {
-                allowlist[i] = allowlist[allowlist.length - 1];
-                delete allowlist[allowlist.length - 1];
+                allowlist[i] = allowlist[allowlistLength - 1];
+                delete allowlist[allowlistLength - 1];
             }
         }
 
@@ -204,13 +206,14 @@ contract Ploan is Initializable {
     /// @return all of the loans for the sender
     function getLoans() external view returns (PersonalLoan[] memory) {
         uint256[] memory mappedLoanIds = participatingLoans[msg.sender];
-        if (mappedLoanIds.length == 0) {
+        uint256 loanCount = mappedLoanIds.length;
+        if (loanCount == 0) {
             PersonalLoan[] memory noLoans = new PersonalLoan[](0);
             return noLoans;
         }
 
         uint256 nonZeroCount = 0;
-        for (uint256 i = 0; i < mappedLoanIds.length; i++) {
+        for (uint256 i = 0; i < loanCount; i++) {
             if (mappedLoanIds[i] != 0) {
                 nonZeroCount++;
             }
@@ -223,7 +226,7 @@ contract Ploan is Initializable {
 
         PersonalLoan[] memory userLoans = new PersonalLoan[](nonZeroCount);
         uint256 userLoansIndex = 0;
-        for (uint256 i = 0; i < mappedLoanIds.length; i++) {
+        for (uint256 i = 0; i < loanCount; i++) {
             if (mappedLoanIds[i] == 0) {
                 /// skip loans that have been deleted
                 continue;
@@ -239,7 +242,8 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     /// @param participants the participants to be associated
     function associateToLoan(uint256 loanId, address[] memory participants) private {
-        for (uint256 i = 0; i < participants.length; i++) {
+        uint256 participantsCount = participants.length;
+        for (uint256 i = 0; i < participantsCount; i++) {
             address participant = participants[i];
             participatingLoans[participant].push(loanId);
         }
@@ -249,10 +253,12 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     /// @param participants the participants to be disassociated
     function disassociateFromLoan(uint256 loanId, address[] memory participants) private {
-        for (uint256 i = 0; i < participants.length; i++) {
+        uint256 participantsCount = participants.length;
+        for (uint256 i = 0; i < participantsCount; i++) {
             address participant = participants[i];
             uint256[] memory loans = participatingLoans[participant];
-            for (uint256 j = 0; j < loans.length; j++) {
+            uint256 participantLoanCount = loans.length;
+            for (uint256 j = 0; j < participantLoanCount; j++) {
                 if (loans[j] == loanId) {
                     delete loans[j];
                 }
