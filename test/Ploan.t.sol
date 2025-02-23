@@ -3,7 +3,12 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {
-    Ploan, InvalidLoanAmount, InvalidLoanAsset, InvalidLoanRecipient, LenderNotAllowlisted
+    Ploan,
+    InvalidLoanAmount,
+    InvalidLoanAsset,
+    InvalidLoanRecipient,
+    LenderNotAllowlisted,
+    LoanAuthorizationFailure
 } from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
 import {UnsafeUpgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
@@ -133,7 +138,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
-        vm.expectRevert("Only the borrower can commit to the loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.commitToLoan(loanId);
     }
 

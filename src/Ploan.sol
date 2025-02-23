@@ -4,10 +4,6 @@ pragma solidity 0.8.28;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @dev raised when a lender is not allowlisted to propose a loan to a user
-/// @param lender the address of the lender
-error LenderNotAllowlisted(address lender);
-
 /// @dev raised when an invalid amount is specified for a loan.
 error InvalidLoanAmount();
 
@@ -16,6 +12,13 @@ error InvalidLoanAsset();
 
 /// @dev raised when the recipient of a loan is invalid.
 error InvalidLoanRecipient();
+
+/// @dev raised when a lender is not allowlisted to propose a loan to a user
+/// @param lender the address of the lender
+error LenderNotAllowlisted(address lender);
+
+/// @dev raised when there is an authorization failure accessing a loan
+error LoanAuthorizationFailure();
 
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
@@ -103,7 +106,9 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function commitToLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.borrower == msg.sender, "Only the borrower can commit to the loan");
+        if (loan.borrower != msg.sender) {
+            revert LoanAuthorizationFailure();
+        }
 
         if (loan.borrowerCommitted) {
             return;
