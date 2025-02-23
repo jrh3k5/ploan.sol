@@ -169,7 +169,9 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function cancelLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.lender == msg.sender, "Only the lender can cancel the loan");
+        if (loan.lender != msg.sender) {
+            revert LoanAuthorizationFailure();
+        }
 
         if (loan.canceled) {
             return;

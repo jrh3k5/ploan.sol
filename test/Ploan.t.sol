@@ -206,7 +206,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
-        vm.expectRevert("Only the lender can cancel the loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.cancelLoan(loanId);
     }
 
