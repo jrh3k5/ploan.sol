@@ -19,14 +19,24 @@ event LoanCanceled(uint256 indexed loanId);
 /// @dev emitted when a borrower commits to a loan
 event LoanCommitted(uint256 indexed loanId);
 
-/// @dev emitted when a loan is completely repaid.
+/// @dev emitted when a loan is completely repaid
 event LoanCompleted(uint256 indexed loanId);
 
 /// @dev emitted every time a user is disassociated from a loan
 event LoanDisassociated(uint256 indexed loanId, address indexed user);
 
-/// @dev emitted when a loan is executed by the lender.
+/// @dev emitted when a loan is executed by the lender
 event LoanExecuted(uint256 indexed loanId);
+
+/// @dev emitted when a loan is imported into the app
+event LoanImported(
+    address indexed lender,
+    address indexed borrower,
+    address indexed asset,
+    uint256 amountLoaned,
+    uint256 amountAlreadyPaid,
+    uint256 loanId
+);
 
 /// @dev emitted when a loan payment is made.
 event LoanPaymentMade(uint256 indexed loanId, uint256 amount);
@@ -92,57 +102,36 @@ contract Ploan is Initializable {
         loanProposalAllowlist[msg.sender].push(toAllow);
     }
 
+    /// @notice imports a pre-existing loan that, upon execution, will not transfer any assets, but merely create a record of the loan to be tracked within this app
+    /// @param borrower the address of the borrower who is going to borrow the asset
+    /// @param loanedAsset the address of the loaned asset being loaned
+    /// @param amountLoaned the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @param amountAlreadyPaid the amount of the loan that has already been paid (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @return the ID of the proposed loan
+    function importLoan(address borrower, address loanedAsset, uint256 amountLoaned, uint256 amountAlreadyPaid)
+        external
+        returns (uint256)
+    {
+        address lender = msg.sender;
+
+        uint256 loanId = addProposedLoan(lender, borrower, loanedAsset, amountLoaned, amountAlreadyPaid, true);
+
+        emit LoanImported(lender, borrower, loanedAsset, amountLoaned, amountAlreadyPaid, loanId);
+
+        return loanId;
+    }
+
     /// @notice creates a loan and returns the loan ID
     /// @param borrower the address of the borrower who is going to borrow the asset
     /// @param loanedAsset the address of the loaned asset being loaned
-    /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @param amountLoaned the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
     /// @return the ID of the proposed loan
-    function proposeLoan(address borrower, address loanedAsset, uint256 totalAmount) external returns (uint256) {
-        if (totalAmount == 0) {
-            revert InvalidLoanAmount();
-        }
+    function proposeLoan(address borrower, address loanedAsset, uint256 amountLoaned) external returns (uint256) {
+        address lender = msg.sender;
 
-        if (borrower == msg.sender) {
-            revert InvalidLoanRecipient();
-        }
+        uint256 loanId = addProposedLoan(lender, borrower, loanedAsset, amountLoaned, 0, false);
 
-        if (loanedAsset == address(0)) {
-            revert InvalidLoanAsset();
-        }
-
-        bool isAllowlisted;
-        uint256 loanCount = loanProposalAllowlist[borrower].length;
-        for (uint256 i; i < loanCount; ++i) {
-            if (loanProposalAllowlist[borrower][i] == msg.sender) {
-                isAllowlisted = true;
-
-                break;
-            }
-        }
-
-        if (!isAllowlisted) {
-            revert LenderNotAllowlisted({lender: msg.sender});
-        }
-
-        uint256 loanId = loanIdBucket;
-        loanIdBucket++;
-
-        PersonalLoan memory newLoan;
-        newLoan.loanId = loanId;
-        newLoan.totalAmountLoaned = totalAmount;
-        newLoan.totalAmountRepaid = 0;
-        newLoan.borrower = borrower;
-        newLoan.lender = msg.sender;
-        newLoan.loanedAsset = loanedAsset;
-
-        address[] memory loanParticipants = new address[](2);
-        loanParticipants[0] = msg.sender;
-        loanParticipants[1] = borrower;
-        associateToLoan(loanId, loanParticipants);
-
-        loansByID[loanId] = newLoan;
-
-        emit LoanProposed(msg.sender, borrower, loanedAsset, totalAmount, loanId);
+        emit LoanProposed(lender, borrower, loanedAsset, amountLoaned, loanId);
 
         return loanId;
     }
@@ -206,7 +195,9 @@ contract Ploan is Initializable {
         loan.started = true;
         loan.repayable = true;
 
-        ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
+        if (!loan.imported) {
+            ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
+        }
 
         loansByID[loanId] = loan;
 
@@ -322,6 +313,68 @@ contract Ploan is Initializable {
         }
 
         return userLoans;
+    }
+
+    /// @dev adds a loan proposal from the sender to the given borrower.
+    /// @param borrower the address of the borrower
+    /// @param loanedAsset the address of the loaned asset
+    /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @param alreadyPaidAmount the amount of the loan already paid (expressed in the base amount of the asset - e.g., wei of ETH)
+    /// @return uint256 ID of the proposed loan
+    function addProposedLoan(
+        address lender,
+        address borrower,
+        address loanedAsset,
+        uint256 totalAmount,
+        uint256 alreadyPaidAmount,
+        bool imported
+    ) private returns (uint256) {
+        if (totalAmount == 0) {
+            revert InvalidLoanAmount();
+        }
+
+        if (borrower == lender) {
+            revert InvalidLoanRecipient();
+        }
+
+        if (loanedAsset == address(0)) {
+            revert InvalidLoanAsset();
+        }
+
+        bool isAllowlisted;
+        uint256 loanCount = loanProposalAllowlist[borrower].length;
+        for (uint256 i; i < loanCount; ++i) {
+            if (loanProposalAllowlist[borrower][i] == lender) {
+                isAllowlisted = true;
+
+                break;
+            }
+        }
+
+        if (!isAllowlisted) {
+            revert LenderNotAllowlisted({lender: lender});
+        }
+
+        uint256 loanId = loanIdBucket;
+        loanIdBucket++;
+
+        PersonalLoan memory newLoan;
+        newLoan.loanId = loanId;
+        newLoan.totalAmountLoaned = totalAmount;
+        newLoan.totalAmountRepaid = alreadyPaidAmount;
+        newLoan.borrower = borrower;
+        newLoan.lender = lender;
+        newLoan.loanedAsset = loanedAsset;
+        newLoan.imported = imported;
+
+        address[] memory loanParticipants = new address[](2);
+        loanParticipants[0] = lender;
+        loanParticipants[1] = borrower;
+        associateToLoan(loanId, loanParticipants);
+
+        loansByID[loanId] = newLoan;
+
+        return loanId;
     }
 
     /// @notice associates the given participants to a loan, faciliating indexed lookups in the future
