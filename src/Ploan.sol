@@ -215,17 +215,13 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     function cancelPendingLoan(uint256 loanId) public {
         PersonalLoan memory loan = loansByID[loanId];
-        if (loan.loanId == 0) {
-            return;
+
+        if (loan.lender != msg.sender && loan.borrower != msg.sender) {
+            revert LoanAuthorizationFailure();
         }
 
-        require(
-            loan.lender == msg.sender || loan.borrower == msg.sender,
-            "Only the lender or borrower can cancel a pending loan"
-        );
-
         if (loan.started) {
-            revert("Loan has already been started and cannot be canceled");
+            revert InvalidLoanState();
         }
 
         address[] memory participants = new address[](2);

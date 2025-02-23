@@ -374,7 +374,7 @@ contract PloanTest is Test {
         ploan.executeLoan(loanId);
 
         vm.prank(borrower);
-        vm.expectRevert("Loan has already been started and cannot be canceled");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.cancelPendingLoan(loanId);
     }
 
@@ -386,7 +386,7 @@ contract PloanTest is Test {
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(address(3));
-        vm.expectRevert("Only the lender or borrower can cancel a pending loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.cancelPendingLoan(loanId);
     }
 }
