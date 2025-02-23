@@ -4,8 +4,9 @@ pragma solidity 0.8.28;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-//// @title A contract for managing personal loans
-//// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
+/// @title A contract for managing personal loans
+/// @author Joshua Hyde
+/// @custom:security-contact 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract Ploan is Initializable {
     /// @notice the ID of the next loan
     uint256 private loanIdBucket;
@@ -48,9 +49,9 @@ contract Ploan is Initializable {
         require(borrower != msg.sender, "Borrower cannot be the lender");
         require(loanedAsset != address(0), "Loaned asset cannot be zero address");
 
-        bool isAllowlisted = false;
+        bool isAllowlisted;
         uint256 loanCount = loanProposalAllowlist[borrower].length;
-        for (uint256 i = 0; i < loanCount; i++) {
+        for (uint256 i; i < loanCount; i++) {
             if (loanProposalAllowlist[borrower][i] == msg.sender) {
                 isAllowlisted = true;
 
@@ -108,7 +109,7 @@ contract Ploan is Initializable {
             return;
         }
 
-        for (uint256 i = 0; i < allowlistLength; i++) {
+        for (uint256 i; i < allowlistLength; i++) {
             if (allowlist[i] == toDisallow) {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
@@ -212,8 +213,8 @@ contract Ploan is Initializable {
             return noLoans;
         }
 
-        uint256 nonZeroCount = 0;
-        for (uint256 i = 0; i < loanCount; i++) {
+        uint256 nonZeroCount;
+        for (uint256 i; i < loanCount; i++) {
             if (mappedLoanIds[i] != 0) {
                 nonZeroCount++;
             }
@@ -225,8 +226,8 @@ contract Ploan is Initializable {
         }
 
         PersonalLoan[] memory userLoans = new PersonalLoan[](nonZeroCount);
-        uint256 userLoansIndex = 0;
-        for (uint256 i = 0; i < loanCount; i++) {
+        uint256 userLoansIndex;
+        for (uint256 i; i < loanCount; i++) {
             if (mappedLoanIds[i] == 0) {
                 /// skip loans that have been deleted
                 continue;
@@ -243,7 +244,7 @@ contract Ploan is Initializable {
     /// @param participants the participants to be associated
     function associateToLoan(uint256 loanId, address[] memory participants) private {
         uint256 participantsCount = participants.length;
-        for (uint256 i = 0; i < participantsCount; i++) {
+        for (uint256 i; i < participantsCount; i++) {
             address participant = participants[i];
             participatingLoans[participant].push(loanId);
         }
@@ -254,11 +255,11 @@ contract Ploan is Initializable {
     /// @param participants the participants to be disassociated
     function disassociateFromLoan(uint256 loanId, address[] memory participants) private {
         uint256 participantsCount = participants.length;
-        for (uint256 i = 0; i < participantsCount; i++) {
+        for (uint256 i; i < participantsCount; i++) {
             address participant = participants[i];
             uint256[] memory loans = participatingLoans[participant];
             uint256 participantLoanCount = loans.length;
-            for (uint256 j = 0; j < participantLoanCount; j++) {
+            for (uint256 j; j < participantLoanCount; j++) {
                 if (loans[j] == loanId) {
                     delete loans[j];
                 }
