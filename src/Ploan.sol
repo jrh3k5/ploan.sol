@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @notice LenderNowAllowlisted is raised when a lender is not allowlisted to propose a loan to a user
+/// @notice raised when a lender is not allowlisted to propose a loan to a user
 /// @param lender the address of the lender
 error LenderNotAllowlisted(address lender);
 
@@ -30,7 +30,9 @@ contract Ploan is Initializable {
 
     /// @notice initialize the contract
     function initialize() public initializer {
-        require(!initialized, "Contract has already been initialized");
+        if (initialized) {
+            revert InvalidInitialization();
+        }
 
         loanIdBucket = 1;
 
@@ -64,9 +66,7 @@ contract Ploan is Initializable {
         }
 
         if (!isAllowlisted) {
-            revert LenderNotAllowlisted({
-                lender: msg.sender
-            });
+            revert LenderNotAllowlisted({lender: msg.sender});
         }
 
         uint256 loanId = loanIdBucket;

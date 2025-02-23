@@ -4,7 +4,8 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {Ploan, LenderNotAllowlisted} from "../src/Ploan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {UnsafeUpgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 
 /// @title A simple ERC20 for testing purposes.
 /// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
@@ -73,7 +74,7 @@ contract PloanTest is Test {
     }
 
     function test_initialize_again() public {
-        vm.expectRevert();
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
         // you should only be able to initialize once
         ploan.initialize();
     }
