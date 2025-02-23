@@ -298,5 +298,4 @@ contract Ploan is Initializable {
             participatingLoans[participant] = loans;
         }
     }
-
 }
