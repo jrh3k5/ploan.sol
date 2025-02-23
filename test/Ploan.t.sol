@@ -7,6 +7,7 @@ import {
     InvalidLoanAmount,
     InvalidLoanAsset,
     InvalidLoanRecipient,
+    InvalidLoanState,
     LenderNotAllowlisted,
     LoanAuthorizationFailure
 } from "../src/Ploan.sol";
@@ -163,7 +164,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
-        vm.expectRevert("Only the lender can execute the loan");
+        vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.executeLoan(loanId);
     }
 
@@ -175,7 +176,7 @@ contract PloanTest is Test {
         uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
 
         vm.prank(lender);
-        vm.expectRevert("Borrower has not committed to the loan");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.executeLoan(loanId);
     }
 
