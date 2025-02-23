@@ -16,6 +16,9 @@ error InvalidLoanRecipient();
 /// @dev raised when the loan state is not in a valid state to perform a particular action
 error InvalidLoanState();
 
+/// @dev raised if a payment amount is not a valid amount
+error InvalidPaymentAmount();
+
 /// @dev raised when a lender is not allowlisted to propose a loan to a user
 /// @param lender the address of the lender
 error LenderNotAllowlisted(address lender);
@@ -188,12 +191,13 @@ contract Ploan is Initializable {
     /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
     function payLoan(uint256 loanId, uint256 amount) public {
         PersonalLoan memory loan = loansByID[loanId];
-        require(loan.repayable, "Loan is not repayable");
-        require(amount > 0, "Amount must be greater than 0");
-        require(
-            loan.totalAmountRepaid + amount <= loan.totalAmountLoaned,
-            "Total amount repaid must be less than or equal to total amount loaned"
-        );
+        if (!loan.repayable) {
+            revert InvalidLoanState();
+        }
+
+        if (amount == 0 || loan.totalAmountRepaid + amount > loan.totalAmountLoaned) {
+            revert InvalidPaymentAmount();
+        }
 
         ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
 

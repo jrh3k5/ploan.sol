@@ -8,6 +8,7 @@ import {
     InvalidLoanAsset,
     InvalidLoanRecipient,
     InvalidLoanState,
+    InvalidPaymentAmount,
     LenderNotAllowlisted,
     LoanAuthorizationFailure
 } from "../src/Ploan.sol";
@@ -245,7 +246,7 @@ contract PloanTest is Test {
         assertEq(token.balanceOf(lender), 20);
         assertEq(token.balanceOf(borrower), 100);
 
-        vm.expectRevert("Amount must be greater than 0");
+        vm.expectRevert(InvalidPaymentAmount.selector);
         vm.prank(borrower);
         ploan.payLoan(loanId, 0);
     }
@@ -270,7 +271,7 @@ contract PloanTest is Test {
         ploan.cancelLoan(loanId);
 
         vm.prank(borrower);
-        vm.expectRevert("Loan is not repayable");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.payLoan(loanId, 100);
     }
 
@@ -301,7 +302,7 @@ contract PloanTest is Test {
         ploan.payLoan(loanId, 100);
 
         vm.prank(borrower);
-        vm.expectRevert("Loan is not repayable");
+        vm.expectRevert(InvalidLoanState.selector);
         ploan.payLoan(loanId, 20);
     }
 
@@ -326,7 +327,7 @@ contract PloanTest is Test {
         ploan.executeLoan(loanId);
 
         vm.prank(borrower);
-        vm.expectRevert("Total amount repaid must be less than or equal to total amount loaned");
+        vm.expectRevert(InvalidPaymentAmount.selector);
         ploan.payLoan(loanId, 120);
     }
 
