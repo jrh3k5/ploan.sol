@@ -8,15 +8,15 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 //// @author 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
 contract Ploan is Initializable {
     /// @notice the ID of the next loan
-    uint256 public loanIdBucket;
+    uint256 private loanIdBucket;
     /// @notice all of the loans
-    mapping(uint256 loanId => PersonalLoan loan) public loansByID;
+    mapping(uint256 loanId => PersonalLoan loan) private loansByID;
     /// @notice all of the loan proposal allowlists
-    mapping(address allowlistOwner => address[] allowlist) public loanProposalAllowlist;
+    mapping(address allowlistOwner => address[] allowlist) private loanProposalAllowlist;
     /// @notice all of the loan participants
-    mapping(address loanParticipant => uint256[] loanIds) public participatingLoans;
+    mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
     /// @notice whether the contract has been initialized
-    bool initialized;
+    bool private initialized;
 
     /// @notice initialize the contract
     function initialize() public initializer {
