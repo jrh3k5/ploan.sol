@@ -76,7 +76,7 @@ contract Ploan is Initializable {
 
         bool isAllowlisted;
         uint256 loanCount = loanProposalAllowlist[borrower].length;
-        for (uint256 i; i < loanCount; i++) {
+        for (uint256 i; i < loanCount; ++i) {
             if (loanProposalAllowlist[borrower][i] == msg.sender) {
                 isAllowlisted = true;
 
@@ -135,7 +135,7 @@ contract Ploan is Initializable {
             return;
         }
 
-        for (uint256 i; i < allowlistLength; i++) {
+        for (uint256 i; i < allowlistLength; ++i) {
             if (allowlist[i] == toDisallow) {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
@@ -244,7 +244,7 @@ contract Ploan is Initializable {
         }
 
         uint256 nonZeroCount;
-        for (uint256 i; i < loanCount; i++) {
+        for (uint256 i; i < loanCount; ++i) {
             if (mappedLoanIds[i] != 0) {
                 nonZeroCount++;
             }
@@ -257,7 +257,7 @@ contract Ploan is Initializable {
 
         PersonalLoan[] memory userLoans = new PersonalLoan[](nonZeroCount);
         uint256 userLoansIndex;
-        for (uint256 i; i < loanCount; i++) {
+        for (uint256 i; i < loanCount; ++i) {
             if (mappedLoanIds[i] == 0) {
                 /// skip loans that have been deleted
                 continue;
@@ -274,7 +274,7 @@ contract Ploan is Initializable {
     /// @param participants the participants to be associated
     function associateToLoan(uint256 loanId, address[] memory participants) private {
         uint256 participantsCount = participants.length;
-        for (uint256 i; i < participantsCount; i++) {
+        for (uint256 i; i < participantsCount; ++i) {
             address participant = participants[i];
             participatingLoans[participant].push(loanId);
         }
@@ -285,11 +285,11 @@ contract Ploan is Initializable {
     /// @param participants the participants to be disassociated
     function disassociateFromLoan(uint256 loanId, address[] memory participants) private {
         uint256 participantsCount = participants.length;
-        for (uint256 i; i < participantsCount; i++) {
+        for (uint256 i; i < participantsCount; ++i) {
             address participant = participants[i];
             uint256[] memory loans = participatingLoans[participant];
             uint256 participantLoanCount = loans.length;
-            for (uint256 j; j < participantLoanCount; j++) {
+            for (uint256 j; j < participantLoanCount; ++j) {
                 if (loans[j] == loanId) {
                     delete loans[j];
                 }
