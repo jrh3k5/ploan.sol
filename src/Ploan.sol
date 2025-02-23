@@ -5,6 +5,42 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PersonalLoan} from "./PersonalLoan.sol";
 
+/// events
+
+/// @dev emitted every time a user is removed from another user's allowlist
+event LenderDisallowed(address indexed lender, address indexed allowlistOwner);
+
+/// @dev emitted every time a user is associated to a loan
+event LoanAssociated(uint256 indexed loanId, address indexed user);
+
+/// @dev emitted when a loan is canceled
+event LoanCanceled(uint256 indexed loanId);
+
+/// @dev emitted when a borrower commits to a loan
+event LoanCommitted(uint256 indexed loanId);
+
+/// @dev emitted when a loan is completely repaid.
+event LoanCompleted(uint256 indexed loanId);
+
+/// @dev emitted every time a user is disassociated from a loan
+event LoanDisassociated(uint256 indexed loanId, address indexed user);
+
+/// @dev emitted when a loan is executed by the lender.
+event LoanExecuted(uint256 indexed loanId);
+
+/// @dev emitted when a loan payment is made.
+event LoanPaymentMade(uint256 indexed loanId, uint256 amount);
+
+/// @dev emitted when a loan is proposed
+event LoanProposed(
+    address indexed lender, address indexed borrower, address indexed asset, uint256 amount, uint256 loanId
+);
+
+/// @dev emitted when a pending loan is canceled
+event PendingLoanCanceled(uint256 indexed loanId);
+
+/// errors
+
 /// @dev raised when an invalid amount is specified for a loan
 error InvalidLoanAmount();
 
@@ -106,6 +142,8 @@ contract Ploan is Initializable {
 
         loansByID[loanId] = newLoan;
 
+        emit LoanProposed(msg.sender, borrower, loanedAsset, totalAmount, loanId);
+
         return loanId;
     }
 
@@ -124,6 +162,8 @@ contract Ploan is Initializable {
         loan.borrowerCommitted = true;
 
         loansByID[loanId] = loan;
+
+        emit LoanCommitted(loanId);
     }
 
     /// @notice removes an address from the loan proposal allowlist for the current user, which disallows that address from proposing loans to the sender to borrow
@@ -139,6 +179,8 @@ contract Ploan is Initializable {
             if (allowlist[i] == toDisallow) {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
+
+                emit LenderDisallowed(toDisallow, msg.sender);
             }
         }
 
@@ -167,6 +209,8 @@ contract Ploan is Initializable {
         ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
 
         loansByID[loanId] = loan;
+
+        emit LoanExecuted(loanId);
     }
 
     /// @notice cancels a loan
@@ -185,6 +229,8 @@ contract Ploan is Initializable {
         loan.repayable = false;
 
         loansByID[loanId] = loan;
+
+        emit LoanCanceled(loanId);
     }
 
     /// @notice executes a repayment of a loan
@@ -204,12 +250,19 @@ contract Ploan is Initializable {
 
         loan.totalAmountRepaid += amount;
 
-        if (loan.totalAmountRepaid == loan.totalAmountLoaned) {
+        bool loanCompleted = loan.totalAmountRepaid == loan.totalAmountLoaned;
+        if (loanCompleted) {
             loan.completed = true;
             loan.repayable = false;
         }
 
         loansByID[loanId] = loan;
+
+        emit LoanPaymentMade(loanId, amount);
+
+        if (loanCompleted) {
+            emit LoanCompleted(loanId);
+        }
     }
 
     /// @notice cancels a loan that has not yet been executed
@@ -231,6 +284,8 @@ contract Ploan is Initializable {
         disassociateFromLoan(loanId, participants);
 
         delete loansByID[loanId];
+
+        emit PendingLoanCanceled(loanId);
     }
 
     /// @notice gets all of the loans for the sender
@@ -277,6 +332,8 @@ contract Ploan is Initializable {
         for (uint256 i; i < participantsCount; ++i) {
             address participant = participants[i];
             participatingLoans[participant].push(loanId);
+
+            emit LoanAssociated(loanId, participant);
         }
     }
 
@@ -292,6 +349,8 @@ contract Ploan is Initializable {
             for (uint256 j; j < participantLoanCount; ++j) {
                 if (loans[j] == loanId) {
                     delete loans[j];
+
+                    emit LoanDisassociated(loanId, participant);
                 }
             }
 
