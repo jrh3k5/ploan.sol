@@ -81,9 +81,6 @@ contract Ploan is Initializable {
         uint256 loanId = loanIdBucket;
         loanIdBucket++;
 
-        uint256 lenderBalance = ERC20(loanedAsset).balanceOf(msg.sender);
-        require(lenderBalance >= totalAmount, "Lender does not have enough balance");
-
         PersonalLoan memory newLoan;
         newLoan.loanId = loanId;
         newLoan.totalAmountLoaned = totalAmount;

@@ -120,15 +120,6 @@ contract PloanTest is Test {
         ploan.proposeLoan(borrower, address(0), 100);
     }
 
-    function test_proposeLoan_insufficientLenderBalance() public {
-        vm.prank(borrower);
-        ploan.allowLoanProposal(lender);
-
-        vm.expectRevert("Lender does not have enough balance");
-        vm.prank(lender);
-        ploan.proposeLoan(borrower, address(token), 1000);
-    }
-
     function test_proposeLoan_notAllowed() public {
         vm.prank(lender);
         vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
