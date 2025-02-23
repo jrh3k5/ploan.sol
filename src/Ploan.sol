@@ -20,8 +20,6 @@ contract Ploan is Initializable {
     mapping(address allowlistOwner => address[] allowlist) private loanProposalAllowlist;
     /// @notice all of the loan participants
     mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
-    /// @notice whether the contract has been initialized
-    bool private initialized;
 
     /// constructor; disables initializer
     constructor() {
@@ -30,13 +28,7 @@ contract Ploan is Initializable {
 
     /// @notice initialize the contract
     function initialize() public initializer {
-        if (initialized) {
-            revert InvalidInitialization();
-        }
-
         loanIdBucket = 1;
-
-        initialized = true;
     }
 
     /// @notice allows a user to be added to the loan proposal allowlist
