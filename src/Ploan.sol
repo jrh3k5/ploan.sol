@@ -190,9 +190,6 @@ contract Ploan is Initializable {
             return;
         }
 
-        loan.started = true;
-        loan.repayable = true;
-
         if (!loan.imported) {
             bool transferSucceeded =
                 ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
@@ -200,6 +197,9 @@ contract Ploan is Initializable {
                 revert TransferFailed();
             }
         }
+
+        loan.started = true;
+        loan.repayable = true;
 
         loansByID[loanId] = loan;
 
