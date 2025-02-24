@@ -1,8 +1,8 @@
 /// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.28;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {PersonalLoan} from "./PersonalLoan.sol";
 
 /// events
@@ -72,6 +72,9 @@ error LenderNotAllowlisted(address lender);
 
 /// @dev raised when there is an authorization failure accessing a loan
 error LoanAuthorizationFailure();
+
+/// @dev raised when a transfer fails to execute
+error TransferFailed();
 
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
@@ -191,7 +194,11 @@ contract Ploan is Initializable {
         loan.repayable = true;
 
         if (!loan.imported) {
-            ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
+            bool transferSucceeded =
+                ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
+            if (!transferSucceeded) {
+                revert TransferFailed();
+            }
         }
 
         loansByID[loanId] = loan;
@@ -232,7 +239,10 @@ contract Ploan is Initializable {
             revert InvalidPaymentAmount();
         }
 
-        ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
+        bool transferSucceeded = ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
+        if (!transferSucceeded) {
+            revert TransferFailed();
+        }
 
         loan.totalAmountRepaid += amount;
 
