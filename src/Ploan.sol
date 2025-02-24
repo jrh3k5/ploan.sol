@@ -190,6 +190,9 @@ contract Ploan is Initializable {
 
         emit LoanExecuted(loanId);
 
+        loan.started = true;
+        loan.repayable = true;
+
         if (!loan.imported) {
             bool transferSucceeded =
                 ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
@@ -197,9 +200,6 @@ contract Ploan is Initializable {
                 revert TransferFailed();
             }
         }
-
-        loan.started = true;
-        loan.repayable = true;
     }
 
     /// @notice cancels a loan
@@ -241,16 +241,16 @@ contract Ploan is Initializable {
             emit LoanCompleted(loanId);
         }
 
-        bool transferSucceeded = ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
-        if (!transferSucceeded) {
-            revert TransferFailed();
-        }
-
         loan.totalAmountRepaid += amount;
 
         if (loanWillComplete) {
             loan.completed = true;
             loan.repayable = false;
+        }
+
+        bool transferSucceeded = ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
+        if (!transferSucceeded) {
+            revert TransferFailed();
         }
     }
 
