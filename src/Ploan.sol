@@ -137,7 +137,7 @@ contract Ploan is Initializable {
     /// @notice commits the sender (who is the borrower) to the loan, signaling that they wish to proceed with the loan
     /// @param loanId the ID of the loan
     function commitToLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (loan.borrower != msg.sender) {
             revert LoanAuthorizationFailure();
         }
@@ -147,8 +147,6 @@ contract Ploan is Initializable {
         }
 
         loan.borrowerCommitted = true;
-
-        loansByID[loanId] = loan;
 
         emit LoanCommitted(loanId);
     }
@@ -177,7 +175,7 @@ contract Ploan is Initializable {
     /// @notice executes a loan, transferring the asset from the lender to the borrower
     /// @param loanId the ID of the loan
     function executeLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (loan.lender != msg.sender) {
             revert LoanAuthorizationFailure();
         }
@@ -202,14 +200,12 @@ contract Ploan is Initializable {
 
         loan.started = true;
         loan.repayable = true;
-
-        loansByID[loanId] = loan;
     }
 
     /// @notice cancels a loan
     /// @param loanId the ID of the loan
     function cancelLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (loan.lender != msg.sender) {
             revert LoanAuthorizationFailure();
         }
@@ -221,8 +217,6 @@ contract Ploan is Initializable {
         loan.canceled = true;
         loan.repayable = false;
 
-        loansByID[loanId] = loan;
-
         emit LoanCanceled(loanId);
     }
 
@@ -230,7 +224,7 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
     function payLoan(uint256 loanId, uint256 amount) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (!loan.repayable) {
             revert InvalidLoanState();
         }
@@ -258,14 +252,12 @@ contract Ploan is Initializable {
             loan.completed = true;
             loan.repayable = false;
         }
-
-        loansByID[loanId] = loan;
     }
 
     /// @notice cancels a loan that has not yet been executed
     /// @param loanId the ID of the loan
     function cancelPendingLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
 
         if (loan.lender != msg.sender && loan.borrower != msg.sender) {
             revert LoanAuthorizationFailure();
