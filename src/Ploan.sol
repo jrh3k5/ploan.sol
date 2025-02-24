@@ -86,11 +86,6 @@ contract Ploan is Initializable {
     /// @notice all of the loan participants
     mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
 
-    /// constructor; disables initializer
-    constructor() {
-        _disableInitializers();
-    }
-
     /// @notice initialize the contract
     function initialize() external initializer {
         loanIdBucket = 1;
