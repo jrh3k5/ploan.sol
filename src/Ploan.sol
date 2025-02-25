@@ -1,8 +1,8 @@
 /// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.28;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {PersonalLoan} from "./PersonalLoan.sol";
 
 /// events
@@ -73,6 +73,9 @@ error LenderNotAllowlisted(address lender);
 /// @dev raised when there is an authorization failure accessing a loan
 error LoanAuthorizationFailure();
 
+/// @dev raised when a transfer fails to execute
+error TransferFailed();
+
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
 /// @custom:security-contact 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
@@ -134,7 +137,7 @@ contract Ploan is Initializable {
     /// @notice commits the sender (who is the borrower) to the loan, signaling that they wish to proceed with the loan
     /// @param loanId the ID of the loan
     function commitToLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (loan.borrower != msg.sender) {
             revert LoanAuthorizationFailure();
         }
@@ -144,8 +147,6 @@ contract Ploan is Initializable {
         }
 
         loan.borrowerCommitted = true;
-
-        loansByID[loanId] = loan;
 
         emit LoanCommitted(loanId);
     }
@@ -174,7 +175,7 @@ contract Ploan is Initializable {
     /// @notice executes a loan, transferring the asset from the lender to the borrower
     /// @param loanId the ID of the loan
     function executeLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (loan.lender != msg.sender) {
             revert LoanAuthorizationFailure();
         }
@@ -187,22 +188,24 @@ contract Ploan is Initializable {
             return;
         }
 
+        emit LoanExecuted(loanId);
+
         loan.started = true;
         loan.repayable = true;
 
         if (!loan.imported) {
-            ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
+            bool transferSucceeded =
+                ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
+            if (!transferSucceeded) {
+                revert TransferFailed();
+            }
         }
-
-        loansByID[loanId] = loan;
-
-        emit LoanExecuted(loanId);
     }
 
     /// @notice cancels a loan
     /// @param loanId the ID of the loan
     function cancelLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (loan.lender != msg.sender) {
             revert LoanAuthorizationFailure();
         }
@@ -214,8 +217,6 @@ contract Ploan is Initializable {
         loan.canceled = true;
         loan.repayable = false;
 
-        loansByID[loanId] = loan;
-
         emit LoanCanceled(loanId);
     }
 
@@ -223,7 +224,7 @@ contract Ploan is Initializable {
     /// @param loanId the ID of the loan
     /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
     function payLoan(uint256 loanId, uint256 amount) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
         if (!loan.repayable) {
             revert InvalidLoanState();
         }
@@ -232,29 +233,31 @@ contract Ploan is Initializable {
             revert InvalidPaymentAmount();
         }
 
-        ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
+        bool loanWillComplete = loan.totalAmountRepaid + amount == loan.totalAmountLoaned;
+
+        emit LoanPaymentMade(loanId, amount);
+
+        if (loanWillComplete) {
+            emit LoanCompleted(loanId);
+        }
 
         loan.totalAmountRepaid += amount;
 
-        bool loanCompleted = loan.totalAmountRepaid == loan.totalAmountLoaned;
-        if (loanCompleted) {
+        if (loanWillComplete) {
             loan.completed = true;
             loan.repayable = false;
         }
 
-        loansByID[loanId] = loan;
-
-        emit LoanPaymentMade(loanId, amount);
-
-        if (loanCompleted) {
-            emit LoanCompleted(loanId);
+        bool transferSucceeded = ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
+        if (!transferSucceeded) {
+            revert TransferFailed();
         }
     }
 
     /// @notice cancels a loan that has not yet been executed
     /// @param loanId the ID of the loan
     function cancelPendingLoan(uint256 loanId) external {
-        PersonalLoan memory loan = loansByID[loanId];
+        PersonalLoan storage loan = loansByID[loanId];
 
         if (loan.lender != msg.sender && loan.borrower != msg.sender) {
             revert LoanAuthorizationFailure();
