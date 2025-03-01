@@ -29,7 +29,7 @@ contract UpgradesScript is Script {
             console.log("Upgrading existing transparent proxy", transparentProxy);
 
             Options memory opts;
-            opts.referenceContract = vm.envString("IMPLEMENTATION_CONTRACT_ADDRESS");
+            opts.referenceContract = "Ploan.sol";
             Upgrades.upgradeProxy(transparentProxy, "Ploan.sol", "", opts);
         }
 
