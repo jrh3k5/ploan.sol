@@ -30,4 +30,5 @@ jobs:
 
       - name: Base Sepolia Testnet Deploy
         run: |
-          forge clean && forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key $PRIVATE_KEY --broadcast --sender $SENDER
+          forge clean
+          TRANSPARENT_PROXY_ADDRESS=0x5cF974E2fC8C4458da4E2F687E3551Be9089a9e3 forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key $PRIVATE_KEY --broadcast --sender $SENDER
