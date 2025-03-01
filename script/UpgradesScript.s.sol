@@ -16,7 +16,7 @@ contract UpgradesScript is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        address transparentProxy = envOr("TRANSPARENT_PROXY_ADDRESS", address(0));
+        address transparentProxy = vm.envOr("TRANSPARENT_PROXY_ADDRESS", address(0));
 
         if (transparentProxy == address(0)) {
             console.log("Deploying a new instance of the contract");
