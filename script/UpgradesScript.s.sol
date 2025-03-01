@@ -16,19 +16,14 @@ contract UpgradesScript is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        address transparentProxy = vm.envOr("TRANSPARENT_PROXY_ADDRESS", address(0));
-        if (transparentProxy == address(0)) {
-            console.log("Deploying a new instance of the contract");
+        console.log("Deploying a new instance of the contract");
 
-            Upgrades.deployTransparentProxy("Ploan.sol", msg.sender, abi.encodeCall(Ploan.initialize, ()));
+        address transparentProxy = Upgrades.deployTransparentProxy("Ploan.sol", msg.sender, abi.encodeCall(Ploan.initialize, ()));
 
-            console.log("Deployed contract to address", transparentProxy);
+        console.log("Deployed contract to proxy address", transparentProxy);
 
-            return;
-        }
+        address implementationAddress = Upgrades.getImplementationAddress(transparentProxy);
 
-        console.log("Upgrading contract at address", transparentProxy);
-
-        Upgrades.upgradeProxy(transparentProxy, "Ploan.sol", "");
+        console.log("Deployed implementation contract to address", implementationAddress);
     }
 }
