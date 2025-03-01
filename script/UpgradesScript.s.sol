@@ -18,7 +18,8 @@ contract UpgradesScript is Script {
 
         console.log("Deploying a new instance of the contract");
 
-        address transparentProxy = Upgrades.deployTransparentProxy("Ploan.sol", msg.sender, abi.encodeCall(Ploan.initialize, ()));
+        address transparentProxy =
+            Upgrades.deployTransparentProxy("Ploan.sol", msg.sender, abi.encodeCall(Ploan.initialize, ()));
 
         console.log("Deployed contract to proxy address", transparentProxy);
 
