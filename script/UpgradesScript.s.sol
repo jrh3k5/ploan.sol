@@ -5,7 +5,7 @@ import {Script} from "forge-std/Script.sol";
 
 import {Ploan} from "../src/Ploan.sol";
 
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {Upgrades, Options} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {console} from "forge-std/console.sol";
 
