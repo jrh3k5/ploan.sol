@@ -279,14 +279,14 @@ contract Ploan is Initializable {
 
     /// @notice gets the allowlist for the sender of whom can propose loans to the sender.
     /// @return the allowlist
-    function getLoanProposalAllowlist() external view returns (address[] memory) {
-        return loanProposalAllowlist[msg.sender];
+    function getLoanProposalAllowlist(address listOwner) external view returns (address[] memory) {
+        return loanProposalAllowlist[listOwner];
     }
 
-    /// @notice gets all of the loans for the sender
+    /// @notice gets all of the loans for the given address - pending, active, whether they be lender or borrower
     /// @return all of the loans for the sender
-    function getLoans() external view returns (PersonalLoan[] memory) {
-        uint256[] memory mappedLoanIds = participatingLoans[msg.sender];
+    function getLoans(address participant) external view returns (PersonalLoan[] memory) {
+        uint256[] memory mappedLoanIds = participatingLoans[participant];
         uint256 loanCount = mappedLoanIds.length;
         if (loanCount == 0) {
             PersonalLoan[] memory noLoans = new PersonalLoan[](0);
