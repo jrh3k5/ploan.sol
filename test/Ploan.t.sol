@@ -9,7 +9,6 @@ import {
     InvalidLoanRecipient,
     InvalidLoanState,
     InvalidPaymentAmount,
-    LenderDisallowed,
     LoanAssociated,
     LoanCanceled,
     LoanCompleted,
@@ -20,6 +19,7 @@ import {
     LoanAuthorizationFailure,
     LoanCommitted,
     LoanPaymentMade,
+    LoanProposalAllowlistModified,
     LoanProposed,
     PendingLoanCanceled
 } from "../src/Ploan.sol";
@@ -250,6 +250,36 @@ contract PloanTest is Test {
         ploan.importLoan(borrower, address(token), 100, 15);
     }
 
+    function test_allowLoanProposal() public {
+        vm.prank(borrower);
+
+        vm.expectEmit();
+        emit LoanProposalAllowlistModified(borrower, lender, true);
+
+        ploan.allowLoanProposal(lender);
+
+        address[] memory allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 1);
+        assertEq(allowlisted[0], lender);
+    }
+
+    function test_allowLoanProposal_alreadyAllowlist() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        address[] memory allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 1);
+        assertEq(allowlisted[0], lender);
+
+        // Do it again - the allowlist should remain unchanged
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 1);
+        assertEq(allowlisted[0], lender);
+    }
+
     function test_getLoanProposalAllowlist() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
@@ -272,7 +302,7 @@ contract PloanTest is Test {
         ploan.proposeLoan(borrower, address(token), 100);
 
         vm.expectEmit();
-        emit LenderDisallowed(lender, borrower);
+        emit LoanProposalAllowlistModified(borrower, lender, false);
 
         vm.prank(borrower);
         ploan.disallowLoanProposal(lender);
