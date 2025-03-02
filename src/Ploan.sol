@@ -277,6 +277,12 @@ contract Ploan is Initializable {
         emit PendingLoanCanceled(loanId);
     }
 
+    /// @notice gets the allowlist for the sender of whom can propose loans to the sender.
+    /// @return the allowlist
+    function getLoanProosalAllowlist() external view returns (address[] memory) {
+        return loanProposalAllowlist[msg.sender];
+    }
+
     /// @notice gets all of the loans for the sender
     /// @return all of the loans for the sender
     function getLoans() external view returns (PersonalLoan[] memory) {
