@@ -279,7 +279,7 @@ contract Ploan is Initializable {
 
     /// @notice gets the allowlist for the sender of whom can propose loans to the sender.
     /// @return the allowlist
-    function getLoanProosalAllowlist() external view returns (address[] memory) {
+    function getLoanProposalAllowlist() external view returns (address[] memory) {
         return loanProposalAllowlist[msg.sender];
     }
 
