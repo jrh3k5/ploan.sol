@@ -29,4 +29,4 @@ jobs:
       - name: Base Sepolia Testnet Deploy
         run: |
           forge clean
-          forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key $PRIVATE_KEY --broadcast --sender $SENDER
+          forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key $PRIVATE_KEY --broadcast --sender $SENDER --verify --etherscan-api-key $BASE_SEPOLIA_ETHERSCAN_API_KEY
