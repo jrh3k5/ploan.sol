@@ -115,8 +115,7 @@ contract PloanTest is Test {
         assertEq(token.balanceOf(lender), 120);
         assertEq(token.balanceOf(borrower), 0);
 
-        vm.prank(lender);
-        PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans(lender);
         assertEq(loans.length, 1);
         PersonalLoan memory completedLoan = loans[0];
         assert(completedLoan.completed);
@@ -217,8 +216,7 @@ contract PloanTest is Test {
         assertEq(token.balanceOf(lender), 185);
         assertEq(token.balanceOf(borrower), 15);
 
-        vm.prank(lender);
-        PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans(lender);
         assertEq(loans.length, 1);
         PersonalLoan memory completedLoan = loans[0];
         assert(completedLoan.completed);
@@ -256,14 +254,12 @@ contract PloanTest is Test {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
 
-        vm.prank(borrower);
-        address[] memory allowlisted = ploan.getLoanProposalAllowlist();
+        address[] memory allowlisted = ploan.getLoanProposalAllowlist(borrower);
         assertEq(allowlisted.length, 1);
         assertEq(allowlisted[0], lender);
 
         // Verify that, if a user does not have an allowlist set up, the list is empty
-        vm.prank(lender);
-        address[] memory lenderAllowlisted = ploan.getLoanProposalAllowlist();
+        address[] memory lenderAllowlisted = ploan.getLoanProposalAllowlist(lender);
         assertEq(lenderAllowlisted.length, 0);
     }
 
@@ -348,8 +344,7 @@ contract PloanTest is Test {
         vm.prank(lender);
         ploan.cancelLoan(loanId);
 
-        vm.prank(borrower);
-        PersonalLoan[] memory loans = ploan.getLoans();
+        PersonalLoan[] memory loans = ploan.getLoans(borrower);
         assertEq(loans.length, 1);
         PersonalLoan memory canceledLoan = loans[0];
 
@@ -512,13 +507,11 @@ contract PloanTest is Test {
         ploan.cancelPendingLoan(loanId);
 
         // The loan should not be in the mappings for either the borrow or lender
-        vm.prank(borrower);
-        PersonalLoan[] memory borrowerLoans = ploan.getLoans();
+        PersonalLoan[] memory borrowerLoans = ploan.getLoans(borrower);
         assertEq(borrowerLoans[0].loanId, retainableLoanID);
         assertEq(borrowerLoans.length, 1);
 
-        vm.prank(lender);
-        PersonalLoan[] memory lenderLoans = ploan.getLoans();
+        PersonalLoan[] memory lenderLoans = ploan.getLoans(lender);
         assertEq(lenderLoans.length, 1);
         assertEq(lenderLoans[0].loanId, retainableLoanID);
     }
