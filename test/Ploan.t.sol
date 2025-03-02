@@ -252,6 +252,21 @@ contract PloanTest is Test {
         ploan.importLoan(borrower, address(token), 100, 15);
     }
 
+    function test_getLoanProposalAllowlist() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(borrower);
+        address[] memory allowlisted = ploan.getLoanProosalAllowlist();
+        assertEq(allowlisted.length, 1);
+        assertEq(allowlisted[0], lender);
+
+        // Verify that, if a user does not have an allowlist set up, the list is empty
+        vm.prank(lender);
+        address[] memory lenderAllowlisted = ploan.getLoanProosalAllowlist();
+        assertEq(lenderAllowlisted.length, 0);
+    }
+
     function test_disallowLoanProposal() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
