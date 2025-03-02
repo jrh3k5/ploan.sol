@@ -7,11 +7,16 @@ import {PersonalLoan} from "./PersonalLoan.sol";
 
 /// events
 
-/// @dev emitted every time a user is removed from another user's allowlist
-event LenderDisallowed(address indexed lender, address indexed allowlistOwner);
-
 /// @dev emitted every time a user is associated to a loan
 event LoanAssociated(uint256 indexed loanId, address indexed user);
+
+/// @dev emitted when someone is added to or removed from a loan proposal allowlist.
+/// @param allowlistOwner the address of the allowlist owner
+/// @param allowlistedAddress the address of the allowlisted address
+/// @param allowlisted whether the address is allowlisted; true if it is, false if it is not (i.e., it has been removed from the allowlist)
+event LoanProposalAllowlistModified(
+    address indexed allowlistOwner, address indexed allowlistedAddress, bool indexed allowlisted
+);
 
 /// @dev emitted when a loan is canceled
 event LoanCanceled(uint256 indexed loanId);
@@ -97,6 +102,16 @@ contract Ploan is Initializable {
     /// @notice allows a user to be added to the loan proposal allowlist
     /// @param toAllow the address to be added
     function allowLoanProposal(address toAllow) external {
+        address[] storage allowlist = loanProposalAllowlist[msg.sender];
+        uint256 allowlistLength = allowlist.length;
+        for (uint256 i; i < allowlistLength; ++i) {
+            if (allowlist[i] == toAllow) {
+                return;
+            }
+        }
+
+        emit LoanProposalAllowlistModified(msg.sender, toAllow, true);
+
         loanProposalAllowlist[msg.sender].push(toAllow);
     }
 
@@ -154,7 +169,7 @@ contract Ploan is Initializable {
     /// @notice removes an address from the loan proposal allowlist for the current user, which disallows that address from proposing loans to the sender to borrow
     /// @param toDisallow the address to be removed
     function disallowLoanProposal(address toDisallow) external {
-        address[] memory allowlist = loanProposalAllowlist[msg.sender];
+        address[] storage allowlist = loanProposalAllowlist[msg.sender];
         uint256 allowlistLength = allowlist.length;
         if (allowlistLength == 0) {
             return;
@@ -165,11 +180,9 @@ contract Ploan is Initializable {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
 
-                emit LenderDisallowed(toDisallow, msg.sender);
+                emit LoanProposalAllowlistModified(msg.sender, toDisallow, false);
             }
         }
-
-        loanProposalAllowlist[msg.sender] = allowlist;
     }
 
     /// @notice executes a loan, transferring the asset from the lender to the borrower
