@@ -257,13 +257,13 @@ contract PloanTest is Test {
         ploan.allowLoanProposal(lender);
 
         vm.prank(borrower);
-        address[] memory allowlisted = ploan.getLoanProosalAllowlist();
+        address[] memory allowlisted = ploan.getLoanProposalAllowlist();
         assertEq(allowlisted.length, 1);
         assertEq(allowlisted[0], lender);
 
         // Verify that, if a user does not have an allowlist set up, the list is empty
         vm.prank(lender);
-        address[] memory lenderAllowlisted = ploan.getLoanProosalAllowlist();
+        address[] memory lenderAllowlisted = ploan.getLoanProposalAllowlist();
         assertEq(lenderAllowlisted.length, 0);
     }
 
