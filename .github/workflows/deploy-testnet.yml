@@ -8,7 +8,6 @@ env:
   FOUNDRY_PROFILE: ci
 
 on:
-  pull_request:
   push:
     branches: [ stage ]
   workflow_dispatch:
