@@ -4,9 +4,9 @@ A tool used to loan someone (at 0% interest) and track the repayment of the loan
 
 Published contracts:
 
-* Base Sepolia (v0.3.1)
-  * Proxy contract: `0xbF0Ee99e7F721a823dDD1311Cef6835A3589D88B`
-  * Implementation contract: `0x48ed87f1909C1bC16E24CDdBE4276097b0fEB236`
+* Base Sepolia (v0.4.0)
+  * Proxy contract: [0x4A50db9E1Cd1290f52c6Af36d1B6F494bA591c41](https://sepolia.basescan.org/address/0x4A50db9E1Cd1290f52c6Af36d1B6F494bA591c41)
+  * Implementation contract: [0x88927c3517bf38572a5Ec2E0eaC54bfBF4EB4834](https://sepolia.basescan.org/address/0x88927c3517bf38572a5Ec2E0eaC54bfBF4EB4834)
 
 ## Development
 
