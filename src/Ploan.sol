@@ -189,10 +189,13 @@ contract Ploan is Initializable {
             return;
         }
 
-        for (uint256 i; i < allowlistLength; ++i) {
+        // the end of the array is zeroed out for deletions, so stop iterating if
+        // the effective end of the list has been reached
+        for (uint256 i; i < allowlistLength && allowlist[i] != address(0); ++i) {
             if (allowlist[i] == toDisallow) {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
+                allowlistLength--;
 
                 emit LoanProposalAllowlistModified(msg.sender, toDisallow, false);
             }
@@ -415,7 +418,19 @@ contract Ploan is Initializable {
         uint256 participantsCount = participants.length;
         for (uint256 i; i < participantsCount; ++i) {
             address participant = participants[i];
-            participatingLoans[participant].push(loanId);
+            // see, first, if a zeroed-out slot can be reused
+            uint256[] storage participantLoans = participatingLoans[participant];
+            uint256 loanCount = participantLoans.length;
+            if (loanCount > 0 && participantLoans[loanCount - 1] == 0) {
+                uint256 finalZeroedOutIndex = loanCount - 1;
+                while (finalZeroedOutIndex > 0 && participantLoans[finalZeroedOutIndex - 1] == 0) {
+                    finalZeroedOutIndex--;
+                }
+
+                participantLoans[finalZeroedOutIndex] = loanId;
+            } else {
+                participantLoans.push(loanId);
+            }
 
             emit LoanAssociated(loanId, participant);
         }
@@ -430,9 +445,12 @@ contract Ploan is Initializable {
             address participant = participants[i];
             uint256[] memory loans = participatingLoans[participant];
             uint256 participantLoanCount = loans.length;
-            for (uint256 j; j < participantLoanCount; ++j) {
+            // The end of the loan list will always be zeroed out, so stop if zero is encountered
+            for (uint256 j; j < participantLoanCount && loans[j] != 0; ++j) {
                 if (loans[j] == loanId) {
+                    loans[j] = loans[participantLoanCount - 1];
                     delete loans[j];
+                    participantLoanCount--;
 
                     emit LoanDisassociated(loanId, participant);
                 }
