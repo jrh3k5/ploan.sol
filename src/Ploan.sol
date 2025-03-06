@@ -112,7 +112,21 @@ contract Ploan is Initializable {
 
         emit LoanProposalAllowlistModified(msg.sender, toAllow, true);
 
-        loanProposalAllowlist[msg.sender].push(toAllow);
+        if (allowlistLength > 0 && allowlist[allowlistLength - 1] == address(0)) {
+            uint256 finalZeroedIndex = allowlistLength - 1;
+            // Find the oldest zeroed-out entry and replace it
+            while (finalZeroedIndex > 0) {
+                if (allowlist[finalZeroedIndex - 1] != address(0)) {
+                    break;
+                }
+
+                finalZeroedIndex -= 1;
+            }
+
+            allowlist[finalZeroedIndex] = toAllow;
+        } else {
+            loanProposalAllowlist[msg.sender].push(toAllow);
+        }
     }
 
     /// @notice imports a pre-existing loan that, upon execution, will not transfer any assets, but merely create a record of the loan to be tracked within this app
