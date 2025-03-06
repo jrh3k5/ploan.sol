@@ -112,7 +112,21 @@ contract Ploan is Initializable {
 
         emit LoanProposalAllowlistModified(msg.sender, toAllow, true);
 
-        loanProposalAllowlist[msg.sender].push(toAllow);
+        if (allowlistLength > 0 && allowlist[allowlistLength - 1] == address(0)) {
+            uint256 finalZeroedIndex = allowlistLength - 1;
+            // Find the oldest zeroed-out entry and replace it
+            while (finalZeroedIndex > 0) {
+                if (allowlist[finalZeroedIndex - 1] != address(0)) {
+                    break;
+                }
+
+                finalZeroedIndex -= 1;
+            }
+
+            allowlist[finalZeroedIndex] = toAllow;
+        } else {
+            loanProposalAllowlist[msg.sender].push(toAllow);
+        }
     }
 
     /// @notice imports a pre-existing loan that, upon execution, will not transfer any assets, but merely create a record of the loan to be tracked within this app
@@ -175,10 +189,13 @@ contract Ploan is Initializable {
             return;
         }
 
-        for (uint256 i; i < allowlistLength; ++i) {
+        // the end of the array is zeroed out for deletions, so stop iterating if
+        // the effective end of the list has been reached
+        for (uint256 i; i < allowlistLength && allowlist[i] != address(0); ++i) {
             if (allowlist[i] == toDisallow) {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
+                allowlistLength--;
 
                 emit LoanProposalAllowlistModified(msg.sender, toDisallow, false);
             }
@@ -291,7 +308,7 @@ contract Ploan is Initializable {
     }
 
     /// @notice gets the allowlist for the sender of whom can propose loans to the sender.
-    /// @return the allowlist
+    /// @return the allowlist; this may include zeroed-out entries if addresses have been removed from the list.
     function getLoanProposalAllowlist(address listOwner) external view returns (address[] memory) {
         return loanProposalAllowlist[listOwner];
     }
@@ -401,7 +418,19 @@ contract Ploan is Initializable {
         uint256 participantsCount = participants.length;
         for (uint256 i; i < participantsCount; ++i) {
             address participant = participants[i];
-            participatingLoans[participant].push(loanId);
+            // see, first, if a zeroed-out slot can be reused
+            uint256[] storage participantLoans = participatingLoans[participant];
+            uint256 loanCount = participantLoans.length;
+            if (loanCount > 0 && participantLoans[loanCount - 1] == 0) {
+                uint256 finalZeroedOutIndex = loanCount - 1;
+                while (finalZeroedOutIndex > 0 && participantLoans[finalZeroedOutIndex - 1] == 0) {
+                    finalZeroedOutIndex--;
+                }
+
+                participantLoans[finalZeroedOutIndex] = loanId;
+            } else {
+                participantLoans.push(loanId);
+            }
 
             emit LoanAssociated(loanId, participant);
         }
@@ -416,9 +445,12 @@ contract Ploan is Initializable {
             address participant = participants[i];
             uint256[] memory loans = participatingLoans[participant];
             uint256 participantLoanCount = loans.length;
-            for (uint256 j; j < participantLoanCount; ++j) {
+            // The end of the loan list will always be zeroed out, so stop if zero is encountered
+            for (uint256 j; j < participantLoanCount && loans[j] != 0; ++j) {
                 if (loans[j] == loanId) {
+                    loans[j] = loans[participantLoanCount - 1];
                     delete loans[j];
+                    participantLoanCount--;
 
                     emit LoanDisassociated(loanId, participant);
                 }

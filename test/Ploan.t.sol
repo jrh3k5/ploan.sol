@@ -280,6 +280,59 @@ contract PloanTest is Test {
         assertEq(allowlisted[0], lender);
     }
 
+    function test_allowLoanProposal_resuseSlots() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(address(1));
+
+        vm.prank(borrower);
+        ploan.allowLoanProposal(address(2));
+
+        vm.prank(borrower);
+        ploan.allowLoanProposal(address(3));
+
+        // Sanity check
+        address[] memory allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 3);
+        assertEq(allowlisted[0], address(1));
+        assertEq(allowlisted[1], address(2));
+        assertEq(allowlisted[2], address(3));
+
+        // Now, disallow address(2) and allow address(4) - it should reuse the slot
+        vm.prank(borrower);
+        ploan.disallowLoanProposal(address(2));
+
+        vm.prank(borrower);
+        ploan.allowLoanProposal(address(4));
+
+        allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 3);
+        assertEq(allowlisted[0], address(1));
+        assertEq(allowlisted[1], address(3));
+        assertEq(allowlisted[2], address(4));
+    }
+
+    /// @dev make sure that this won't suffer from out-of-bounds access
+    function test_allowLoanProposal_resuseFinalSlot() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(address(1));
+
+        // Sanity check
+        address[] memory allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 1);
+        assertEq(allowlisted[0], address(1));
+
+        // Now, disallow address(2) and allow address(4) - it should reuse the slot
+        vm.prank(borrower);
+        ploan.disallowLoanProposal(address(1));
+
+        vm.prank(borrower);
+        ploan.allowLoanProposal(address(4));
+
+        allowlisted = ploan.getLoanProposalAllowlist(borrower);
+        assertEq(allowlisted.length, 1);
+        assertEq(allowlisted[0], address(4));
+    }
+
     function test_getLoanProposalAllowlist() public {
         vm.prank(borrower);
         ploan.allowLoanProposal(lender);
