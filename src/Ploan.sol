@@ -305,7 +305,7 @@ contract Ploan is Initializable {
     }
 
     /// @notice gets the allowlist for the sender of whom can propose loans to the sender.
-    /// @return the allowlist
+    /// @return the allowlist; this may include zeroed-out entries if addresses have been removed from the list.
     function getLoanProposalAllowlist(address listOwner) external view returns (address[] memory) {
         return loanProposalAllowlist[listOwner];
     }
