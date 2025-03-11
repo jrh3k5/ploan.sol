@@ -578,13 +578,13 @@ contract PloanTest is Test {
         uint256 retainableLoanID = ploan.proposeLoan(borrower, address(token), 5);
 
         vm.expectEmit();
+        emit PendingLoanCanceled(loanId);
+
+        vm.expectEmit();
         emit LoanDisassociated(loanId, lender);
 
         vm.expectEmit();
         emit LoanDisassociated(loanId, borrower);
-
-        vm.expectEmit();
-        emit PendingLoanCanceled(loanId);
 
         vm.prank(borrower);
         ploan.cancelPendingLoan(loanId);

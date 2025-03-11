@@ -30,6 +30,9 @@ event LoanCompleted(uint256 indexed loanId);
 /// @dev emitted every time a user is disassociated from a loan
 event LoanDisassociated(uint256 indexed loanId, address indexed user);
 
+/// @dev emitted when a loan is deleted
+event LoanDeleted(uint256 indexed loanId, address indexed lender, address indexed borrower);
+
 /// @dev emitted when a loan is executed by the lender
 event LoanExecuted(uint256 indexed loanId);
 
@@ -287,7 +290,7 @@ contract Ploan is Initializable {
     /// @notice cancels a loan that has not yet been executed
     /// @param loanId the ID of the loan
     function cancelPendingLoan(uint256 loanId) external {
-        PersonalLoan storage loan = loansByID[loanId];
+        PersonalLoan memory loan = loansByID[loanId];
 
         if (loan.lender != msg.sender && loan.borrower != msg.sender) {
             revert LoanAuthorizationFailure();
@@ -297,14 +300,9 @@ contract Ploan is Initializable {
             revert InvalidLoanState();
         }
 
-        address[] memory participants = new address[](2);
-        participants[0] = loan.lender;
-        participants[1] = loan.borrower;
-        disassociateFromLoan(loanId, participants);
-
-        delete loansByID[loanId];
-
         emit PendingLoanCanceled(loanId);
+
+        removeLoan(loan);
     }
 
     /// @notice gets the allowlist for the sender of whom can propose loans to the sender.
@@ -347,6 +345,23 @@ contract Ploan is Initializable {
         }
 
         return userLoans;
+    }
+
+    /// @notice deletes a loan. The loan must either be canceled by the lender or completed by the borrower. A loan can only be deleted by the lender or borrower.
+    function deleteLoan(uint256 loanId) external {
+        PersonalLoan memory loan = loansByID[loanId];
+
+        if (loan.lender != msg.sender && loan.borrower != msg.sender) {
+            revert LoanAuthorizationFailure();
+        }
+
+        if (!loan.canceled && !loan.completed) {
+            revert InvalidLoanState();
+        }
+
+        emit LoanDeleted(loanId, loan.lender, loan.borrower);
+
+        removeLoan(loan);
     }
 
     /// @dev adds a loan proposal from the sender to the given borrower.
@@ -458,5 +473,15 @@ contract Ploan is Initializable {
 
             participatingLoans[participant] = loans;
         }
+    }
+
+    /// @dev removes all traces of a loan from within the storage in this contract
+    function removeLoan(PersonalLoan memory loan) private {
+        address[] memory participants = new address[](2);
+        participants[0] = loan.lender;
+        participants[1] = loan.borrower;
+        disassociateFromLoan(loan.loanId, participants);
+
+        delete loansByID[loan.loanId];
     }
 }
