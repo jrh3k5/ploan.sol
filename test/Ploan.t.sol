@@ -631,4 +631,172 @@ contract PloanTest is Test {
         vm.expectRevert(LoanAuthorizationFailure.selector);
         ploan.cancelPendingLoan(loanId);
     }
+
+    function test_deleteLoan_completed() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.prank(borrower);
+        ploan.commitToLoan(loanId);
+
+        vm.prank(lender);
+        token.approve(address(ploan), 100);
+
+        vm.prank(lender);
+        ploan.executeLoan(loanId);
+
+        vm.prank(borrower);
+        token.approve(address(ploan), 100);
+
+        vm.prank(borrower);
+        ploan.payLoan(loanId, 100);
+
+        // The loan should still exist and be mapped for the lender and borrower after completion
+        PersonalLoan[] memory borrowerLoans = ploan.getLoans(borrower);
+        assertEq(borrowerLoans[0].loanId, loanId);
+        assertEq(borrowerLoans.length, 1);
+        assertTrue(borrowerLoans[0].completed);
+
+        PersonalLoan[] memory lenderLoans = ploan.getLoans(lender);
+        assertEq(lenderLoans[0].loanId, loanId);
+        assertEq(lenderLoans.length, 1);
+        assertTrue(lenderLoans[0].completed);
+
+        vm.prank(borrower);
+        ploan.deleteLoan(loanId);
+
+        // The loan should not be in the mappings for either the borrow or lender
+        borrowerLoans = ploan.getLoans(borrower);
+        assertEq(borrowerLoans.length, 0);
+
+        lenderLoans = ploan.getLoans(lender);
+        assertEq(lenderLoans.length, 0);
+    }
+
+    function test_deleteLoan_canceled() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.prank(borrower);
+        ploan.commitToLoan(loanId);
+
+        vm.prank(lender);
+        token.approve(address(ploan), 100);
+
+        vm.prank(lender);
+        ploan.executeLoan(loanId);
+
+        vm.prank(lender);
+        ploan.cancelLoan(loanId);
+
+        // The loan should still exist and be mapped for the lender and borrower after completion
+        PersonalLoan[] memory borrowerLoans = ploan.getLoans(borrower);
+        assertEq(borrowerLoans[0].loanId, loanId);
+        assertEq(borrowerLoans.length, 1);
+        assertTrue(borrowerLoans[0].canceled);
+
+        PersonalLoan[] memory lenderLoans = ploan.getLoans(lender);
+        assertEq(lenderLoans[0].loanId, loanId);
+        assertEq(lenderLoans.length, 1);
+        assertTrue(lenderLoans[0].canceled);
+
+        vm.prank(borrower);
+        ploan.deleteLoan(loanId);
+
+        // The loan should not be in the mappings for either the borrow or lender
+        borrowerLoans = ploan.getLoans(borrower);
+        assertEq(borrowerLoans.length, 0);
+
+        lenderLoans = ploan.getLoans(lender);
+        assertEq(lenderLoans.length, 0);
+    }
+
+    /// @dev makes sure that a lender can delete a loan - the other happy
+    /// path tests just exercise that path as the borrower
+    function test_deleteLoan_asLender() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.prank(borrower);
+        ploan.commitToLoan(loanId);
+
+        vm.prank(lender);
+        token.approve(address(ploan), 100);
+
+        vm.prank(lender);
+        ploan.executeLoan(loanId);
+
+        vm.prank(lender);
+        ploan.cancelLoan(loanId);
+
+        vm.prank(lender);
+        ploan.deleteLoan(loanId);
+
+        // The loan should not be in the mappings for either the borrow or lender
+        PersonalLoan[] memory borrowerLoans = ploan.getLoans(borrower);
+        assertEq(borrowerLoans.length, 0);
+
+        PersonalLoan[] memory lenderLoans = ploan.getLoans(lender);
+        assertEq(lenderLoans.length, 0);
+    }
+
+    function test_deleteLoan_notLenderOrBorrower() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.prank(borrower);
+        ploan.commitToLoan(loanId);
+
+        vm.prank(lender);
+        token.approve(address(ploan), 100);
+
+        vm.prank(lender);
+        ploan.executeLoan(loanId);
+
+        vm.prank(lender);
+        ploan.cancelLoan(loanId);
+
+        vm.prank(address(4));
+        vm.expectRevert(LoanAuthorizationFailure.selector);
+        ploan.deleteLoan(loanId);
+    }
+
+    function test_deleteLoan_notCanceledOrCompleted() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+
+        vm.prank(lender);
+        uint256 loanId = ploan.proposeLoan(borrower, address(token), 100);
+
+        vm.prank(borrower);
+        ploan.commitToLoan(loanId);
+
+        vm.prank(lender);
+        token.approve(address(ploan), 100);
+
+        vm.prank(lender);
+        ploan.executeLoan(loanId);
+
+        vm.prank(lender);
+        vm.expectRevert(InvalidLoanState.selector);
+        ploan.deleteLoan(loanId);
+    }
+
+    function test_deleteLoan_notFound() public {
+        vm.prank(borrower);
+        vm.expectRevert(LoanAuthorizationFailure.selector);
+        ploan.deleteLoan(0);
+    }
 }
