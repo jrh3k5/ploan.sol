@@ -123,7 +123,7 @@ contract Ploan is Initializable {
                     break;
                 }
 
-                finalZeroedIndex -= 1;
+                --finalZeroedIndex;
             }
 
             allowlist[finalZeroedIndex] = toAllow;
@@ -198,7 +198,7 @@ contract Ploan is Initializable {
             if (allowlist[i] == toDisallow) {
                 allowlist[i] = allowlist[allowlistLength - 1];
                 delete allowlist[allowlistLength - 1];
-                allowlistLength--;
+                --allowlistLength;
 
                 emit LoanProposalAllowlistModified(msg.sender, toDisallow, false);
             }
@@ -324,7 +324,7 @@ contract Ploan is Initializable {
         uint256 nonZeroCount;
         for (uint256 i; i < loanCount; ++i) {
             if (mappedLoanIds[i] != 0) {
-                nonZeroCount++;
+                ++nonZeroCount;
             }
         }
 
@@ -341,7 +341,7 @@ contract Ploan is Initializable {
                 continue;
             }
             userLoans[userLoansIndex] = loansByID[mappedLoanIds[i]];
-            userLoansIndex++;
+            ++userLoansIndex;
         }
 
         return userLoans;
@@ -405,7 +405,7 @@ contract Ploan is Initializable {
         }
 
         uint256 loanId = loanIdBucket;
-        loanIdBucket++;
+        ++loanIdBucket;
 
         PersonalLoan memory newLoan;
         newLoan.loanId = loanId;
@@ -439,7 +439,7 @@ contract Ploan is Initializable {
             if (loanCount > 0 && participantLoans[loanCount - 1] == 0) {
                 uint256 finalZeroedOutIndex = loanCount - 1;
                 while (finalZeroedOutIndex > 0 && participantLoans[finalZeroedOutIndex - 1] == 0) {
-                    finalZeroedOutIndex--;
+                    --finalZeroedOutIndex;
                 }
 
                 participantLoans[finalZeroedOutIndex] = loanId;
@@ -465,7 +465,7 @@ contract Ploan is Initializable {
                 if (loans[j] == loanId) {
                     loans[j] = loans[participantLoanCount - 1];
                     delete loans[j];
-                    participantLoanCount--;
+                    --participantLoanCount;
 
                     emit LoanDisassociated(loanId, participant);
                 }
