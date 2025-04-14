@@ -12,6 +12,9 @@ on:
     branches: [ stage ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check:
     strategy:

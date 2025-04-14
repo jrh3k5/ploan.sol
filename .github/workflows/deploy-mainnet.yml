@@ -1,0 +1,35 @@
+name: Deploy to Testnet
+
+env:
+  BASE_MAINNET_ETHERSCAN_API_KEY: ${{ secrets.BASE_MAINNET_ETHERSCAN_API_KEY }}
+  BASE_MAINNET_RPC_URL: ${{ secrets.BASE_MAINNET_RPC_URL }}
+  PRIVATE_KEY: ${{ secrets.MAINNET_DEPLOYER_PRIVATE_KEY }}
+  SENDER: ${{ secrets.MAINNET_SENDER }}
+  FOUNDRY_PROFILE: ci
+
+on:
+  push:
+    branches: [ release ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Deploy to Mainnet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Base Mainnet Deploy
+        run: |
+          forge clean
+          forge script script/UpgradesScript.s.sol --rpc-url base_mainnet --private-key $PRIVATE_KEY --broadcast --sender $SENDER --verify --etherscan-api-key $BASE_MAINNET_ETHERSCAN_API_KEY
