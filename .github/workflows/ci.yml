@@ -19,7 +19,7 @@ jobs:
           npm install --global solhint@5.0.5
       - name: Solhint
         run: |
-          solhint 'contracts/**/*.sol'
+          solhint 'src/**/*.sol'
 
   check:
     strategy:
