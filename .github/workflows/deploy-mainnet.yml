@@ -1,4 +1,4 @@
-name: Deploy to Testnet
+name: Deploy to Mainnet
 
 env:
   BASE_MAINNET_ETHERSCAN_API_KEY: ${{ secrets.BASE_MAINNET_ETHERSCAN_API_KEY }}
@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+
 
 jobs:
   check:
