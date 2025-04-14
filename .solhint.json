@@ -1,0 +1,10 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "gas-calldata-parameters": "error",
+    "gas-increment-by-one": "error",
+    "gas-length-in-loops": "error",
+    "gas-small-strings": "error",
+    "gas-struct-packing": "error"
+  }
+}
