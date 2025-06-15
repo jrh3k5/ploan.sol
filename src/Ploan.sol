@@ -4,6 +4,9 @@ pragma solidity 0.8.28;
 import {ERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {Initializable} from "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {PersonalLoan} from "./PersonalLoan.sol";
+import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "../lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
+import {SafeERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// events
 
@@ -74,6 +77,10 @@ error InvalidLoanState();
 /// @dev raised if a payment amount is not a valid amount
 error InvalidPaymentAmount();
 
+/// @dev raised when a caller is not an allowed pauser
+/// @param pauser The address attempting the action
+error NotAllowedPauser(address pauser);
+
 /// @dev raised when a lender is not allowlisted to propose a loan to a user
 /// @param lender the address of the lender
 error LenderNotAllowlisted(address lender);
@@ -81,13 +88,29 @@ error LenderNotAllowlisted(address lender);
 /// @dev raised when there is an authorization failure accessing a loan
 error LoanAuthorizationFailure();
 
-/// @dev raised when a transfer fails to execute
-error TransferFailed();
+/// @dev raised when amountAlreadyPaid exceeds amountLoaned in importLoan
+/// @param amountAlreadyPaid The amount already paid
+/// @param amountLoaned The total loaned amount
+error AlreadyPaidExceedsLoaned(uint256 amountAlreadyPaid, uint256 amountLoaned);
+
+/// @dev raised when a caller is not allowed to manage entry points
+/// @param caller The address attempting to manage entry points
+error NotAllowedEntryPointManager(address caller);
+
+/// @dev Emitted when a pauser is added or removed
+/// @param pauser The address of the pauser
+/// @param allowed Whether the pauser is allowed
+event PauserAllowlistModified(address indexed pauser, bool indexed allowed);
+
+/// @dev Emitted when an EntryPoint manager is added or removed
+/// @param manager The address of the manager
+/// @param allowed Whether the manager is allowed
+event EntryPointManagerModified(address indexed manager, bool indexed allowed);
 
 /// @title A contract for managing personal loans
 /// @author Joshua Hyde
 /// @custom:security-contact 0x9134fc7112b478e97eE6F0E6A7bf81EcAfef19ED
-contract Ploan is Initializable {
+contract Ploan is Initializable, ReentrancyGuard, Pausable {
     /// @notice the ID of the next loan
     uint256 private loanIdBucket;
     /// @notice all of the loans
@@ -97,15 +120,84 @@ contract Ploan is Initializable {
     /// @notice all of the loan participants
     mapping(address loanParticipant => uint256[] loanIds) private participatingLoans;
 
+    /// @notice Allowlist for pauser addresses
+    mapping(address pauserAddress => bool isPauser) private pauserAllowlist;
+    // Mapping of allowed EntryPoints for ERC-4337
+    mapping(address entryPointerManager => bool isEntryPointerManager) private _entryPoints;
+    // Mapping of addresses allowed to manage EntryPoints
+    mapping(address entryPointManager => bool isEntryPointerManager) private entryPointManagerAllowlist;
+
+    // Storage gap for upgradeability
+    // slither-disable-next-line unused-state,naming-convention
+    uint256[47] private __gap;
+
+    /// @notice Add an EntryPoint contract for ERC-4337 meta-transactions
+    /// @param entryPoint The EntryPoint contract address to allow
+    function addEntryPoint(address entryPoint) external {
+        if (!entryPointManagerAllowlist[_msgSender()]) {
+            revert NotAllowedEntryPointManager(_msgSender());
+        }
+        _entryPoints[entryPoint] = true;
+    }
+
+    /// @notice Remove an EntryPoint contract from the allowlist
+    /// @param entryPoint The EntryPoint contract address to remove
+    function removeEntryPoint(address entryPoint) external {
+        if (!entryPointManagerAllowlist[_msgSender()]) {
+            revert NotAllowedEntryPointManager(_msgSender());
+        }
+        _entryPoints[entryPoint] = false;
+    }
+
+    /// @notice Check if an address is an allowed EntryPoint
+    /// @param entryPoint The address to check
+    /// @return True if the address is an allowed EntryPoint
+    function isEntryPoint(address entryPoint) external view returns (bool) {
+        return _entryPoints[entryPoint];
+    }
+
+    /// @notice Add an address to the entry point manager allowlist (pauser only)
+    /// @param manager The address to add as entry point manager
+    /// @notice Add an address to the entry point manager allowlist (pauser only)
+    /// @param manager The address to add as entry point manager
+    function addEntryPointManager(address manager) external {
+        if (!pauserAllowlist[_msgSender()]) {
+            revert NotAllowedPauser(_msgSender());
+        }
+        entryPointManagerAllowlist[manager] = true;
+        emit EntryPointManagerModified(manager, true);
+    }
+
+    /// @notice Remove an address from the entry point manager allowlist (pauser only)
+    /// @param manager The address to remove as entry point manager
+    /// @notice Remove an address from the entry point manager allowlist (pauser only)
+    /// @param manager The address to remove as entry point manager
+    function removeEntryPointManager(address manager) external {
+        if (!pauserAllowlist[_msgSender()]) {
+            revert NotAllowedPauser(_msgSender());
+        }
+        entryPointManagerAllowlist[manager] = false;
+        emit EntryPointManagerModified(manager, false);
+    }
+
+    /// @notice Check if an address is an entry point manager
+    /// @param manager The address to check
+    /// @return True if the address is an entry point manager
+    function isEntryPointManager(address manager) external view returns (bool) {
+        return entryPointManagerAllowlist[manager];
+    }
+
     /// @notice initialize the contract
     function initialize() external initializer {
         loanIdBucket = 1;
+        pauserAllowlist[_msgSender()] = true; // deployer is initial pauser
+        emit PauserAllowlistModified(_msgSender(), true);
     }
 
     /// @notice allows a user to be added to the loan proposal allowlist
     /// @param toAllow the address to be added
     function allowLoanProposal(address toAllow) external {
-        address[] storage allowlist = loanProposalAllowlist[msg.sender];
+        address[] storage allowlist = loanProposalAllowlist[_msgSender()];
         uint256 allowlistLength = allowlist.length;
         for (uint256 i; i < allowlistLength; ++i) {
             if (allowlist[i] == toAllow) {
@@ -113,7 +205,7 @@ contract Ploan is Initializable {
             }
         }
 
-        emit LoanProposalAllowlistModified(msg.sender, toAllow, true);
+        emit LoanProposalAllowlistModified(_msgSender(), toAllow, true);
 
         if (allowlistLength > 0 && allowlist[allowlistLength - 1] == address(0)) {
             uint256 finalZeroedIndex = allowlistLength - 1;
@@ -128,7 +220,7 @@ contract Ploan is Initializable {
 
             allowlist[finalZeroedIndex] = toAllow;
         } else {
-            loanProposalAllowlist[msg.sender].push(toAllow);
+            loanProposalAllowlist[_msgSender()].push(toAllow);
         }
     }
 
@@ -140,9 +232,13 @@ contract Ploan is Initializable {
     /// @return the ID of the proposed loan
     function importLoan(address borrower, address loanedAsset, uint256 amountLoaned, uint256 amountAlreadyPaid)
         external
+        whenNotPaused
         returns (uint256)
     {
-        address lender = msg.sender;
+        if (amountAlreadyPaid > amountLoaned) {
+            revert AlreadyPaidExceedsLoaned(amountAlreadyPaid, amountLoaned);
+        }
+        address lender = _msgSender();
 
         uint256 loanId = addProposedLoan(lender, borrower, loanedAsset, amountLoaned, amountAlreadyPaid, true);
 
@@ -156,8 +252,12 @@ contract Ploan is Initializable {
     /// @param loanedAsset the address of the loaned asset being loaned
     /// @param amountLoaned the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
     /// @return the ID of the proposed loan
-    function proposeLoan(address borrower, address loanedAsset, uint256 amountLoaned) external returns (uint256) {
-        address lender = msg.sender;
+    function proposeLoan(address borrower, address loanedAsset, uint256 amountLoaned)
+        external
+        whenNotPaused
+        returns (uint256)
+    {
+        address lender = _msgSender();
 
         uint256 loanId = addProposedLoan(lender, borrower, loanedAsset, amountLoaned, 0, false);
 
@@ -168,9 +268,9 @@ contract Ploan is Initializable {
 
     /// @notice commits the sender (who is the borrower) to the loan, signaling that they wish to proceed with the loan
     /// @param loanId the ID of the loan
-    function commitToLoan(uint256 loanId) external {
+    function commitToLoan(uint256 loanId) external whenNotPaused {
         PersonalLoan storage loan = loansByID[loanId];
-        if (loan.borrower != msg.sender) {
+        if (loan.borrower != _msgSender()) {
             revert LoanAuthorizationFailure();
         }
 
@@ -185,8 +285,8 @@ contract Ploan is Initializable {
 
     /// @notice removes an address from the loan proposal allowlist for the current user, which disallows that address from proposing loans to the sender to borrow
     /// @param toDisallow the address to be removed
-    function disallowLoanProposal(address toDisallow) external {
-        address[] storage allowlist = loanProposalAllowlist[msg.sender];
+    function disallowLoanProposal(address toDisallow) external whenNotPaused {
+        address[] storage allowlist = loanProposalAllowlist[_msgSender()];
         uint256 allowlistLength = allowlist.length;
         if (allowlistLength == 0) {
             return;
@@ -200,16 +300,16 @@ contract Ploan is Initializable {
                 delete allowlist[allowlistLength - 1];
                 --allowlistLength;
 
-                emit LoanProposalAllowlistModified(msg.sender, toDisallow, false);
+                emit LoanProposalAllowlistModified(_msgSender(), toDisallow, false);
             }
         }
     }
 
     /// @notice executes a loan, transferring the asset from the lender to the borrower
     /// @param loanId the ID of the loan
-    function executeLoan(uint256 loanId) external {
+    function executeLoan(uint256 loanId) external nonReentrant whenNotPaused {
         PersonalLoan storage loan = loansByID[loanId];
-        if (loan.lender != msg.sender) {
+        if (loan.lender != _msgSender()) {
             revert LoanAuthorizationFailure();
         }
 
@@ -227,19 +327,15 @@ contract Ploan is Initializable {
         loan.repayable = true;
 
         if (!loan.imported) {
-            bool transferSucceeded =
-                ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.borrower, loan.totalAmountLoaned);
-            if (!transferSucceeded) {
-                revert TransferFailed();
-            }
+            SafeERC20.safeTransferFrom(ERC20(loan.loanedAsset), _msgSender(), loan.borrower, loan.totalAmountLoaned);
         }
     }
 
     /// @notice cancels a loan
     /// @param loanId the ID of the loan
-    function cancelLoan(uint256 loanId) external {
+    function cancelLoan(uint256 loanId) external whenNotPaused {
         PersonalLoan storage loan = loansByID[loanId];
-        if (loan.lender != msg.sender) {
+        if (loan.lender != _msgSender()) {
             revert LoanAuthorizationFailure();
         }
 
@@ -256,7 +352,7 @@ contract Ploan is Initializable {
     /// @notice executes a repayment of a loan
     /// @param loanId the ID of the loan
     /// @param amount the amount to be repaid (expressed in the base amount of the asset - e.g., wei of ETH)
-    function payLoan(uint256 loanId, uint256 amount) external {
+    function payLoan(uint256 loanId, uint256 amount) external nonReentrant whenNotPaused {
         PersonalLoan storage loan = loansByID[loanId];
         if (!loan.repayable) {
             revert InvalidLoanState();
@@ -281,18 +377,15 @@ contract Ploan is Initializable {
             loan.repayable = false;
         }
 
-        bool transferSucceeded = ERC20(loan.loanedAsset).transferFrom(msg.sender, loan.lender, amount);
-        if (!transferSucceeded) {
-            revert TransferFailed();
-        }
+        SafeERC20.safeTransferFrom(ERC20(loan.loanedAsset), _msgSender(), loan.lender, amount);
     }
 
     /// @notice cancels a loan that has not yet been executed
     /// @param loanId the ID of the loan
-    function cancelPendingLoan(uint256 loanId) external {
+    function cancelPendingLoan(uint256 loanId) external whenNotPaused {
         PersonalLoan memory loan = loansByID[loanId];
 
-        if (loan.lender != msg.sender && loan.borrower != msg.sender) {
+        if (loan.lender != _msgSender() && loan.borrower != _msgSender()) {
             revert LoanAuthorizationFailure();
         }
 
@@ -322,9 +415,14 @@ contract Ploan is Initializable {
         }
 
         uint256 nonZeroCount;
-        for (uint256 i; i < loanCount; ++i) {
+        for (uint256 i; i < loanCount;) {
             if (mappedLoanIds[i] != 0) {
-                ++nonZeroCount;
+                unchecked {
+                    ++nonZeroCount;
+                }
+            }
+            unchecked {
+                ++i;
             }
         }
 
@@ -335,23 +433,31 @@ contract Ploan is Initializable {
 
         PersonalLoan[] memory userLoans = new PersonalLoan[](nonZeroCount);
         uint256 userLoansIndex;
-        for (uint256 i; i < loanCount; ++i) {
+        for (uint256 i; i < loanCount;) {
             if (mappedLoanIds[i] == 0) {
                 /// skip loans that have been deleted
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
             userLoans[userLoansIndex] = loansByID[mappedLoanIds[i]];
-            ++userLoansIndex;
+            unchecked {
+                ++userLoansIndex;
+            }
+            unchecked {
+                ++i;
+            }
         }
 
         return userLoans;
     }
 
     /// @notice deletes a loan. The loan must either be canceled by the lender or completed by the borrower. A loan can only be deleted by the lender or borrower.
-    function deleteLoan(uint256 loanId) external {
+    function deleteLoan(uint256 loanId) external whenNotPaused {
         PersonalLoan memory loan = loansByID[loanId];
 
-        if (loan.lender != msg.sender && loan.borrower != msg.sender) {
+        if (loan.lender != _msgSender() && loan.borrower != _msgSender()) {
             revert LoanAuthorizationFailure();
         }
 
@@ -364,12 +470,16 @@ contract Ploan is Initializable {
         removeLoan(loan);
     }
 
-    /// @dev adds a loan proposal from the sender to the given borrower.
-    /// @param borrower the address of the borrower
-    /// @param loanedAsset the address of the loaned asset
-    /// @param totalAmount the total amount of the loan (expressed in the base amount of the asset - e.g., wei of ETH)
-    /// @param alreadyPaidAmount the amount of the loan already paid (expressed in the base amount of the asset - e.g., wei of ETH)
-    /// @return uint256 ID of the proposed loan
+    /**
+     * @dev Adds a loan proposal from the sender to the given borrower.
+     * @param lender The address of the lender.
+     * @param borrower The address of the borrower.
+     * @param loanedAsset The asset being loaned.
+     * @param totalAmount The total amount of the loan.
+     * @param alreadyPaidAmount The amount already paid.
+     * @param imported Whether the loan was imported.
+     * @return The ID of the proposed loan.
+     */
     function addProposedLoan(
         address lender,
         address borrower,
@@ -392,11 +502,14 @@ contract Ploan is Initializable {
 
         bool isAllowlisted;
         uint256 loanCount = loanProposalAllowlist[borrower].length;
-        for (uint256 i; i < loanCount; ++i) {
+        for (uint256 i; i < loanCount;) {
             if (loanProposalAllowlist[borrower][i] == lender) {
                 isAllowlisted = true;
 
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
 
@@ -426,12 +539,14 @@ contract Ploan is Initializable {
         return loanId;
     }
 
-    /// @notice associates the given participants to a loan, faciliating indexed lookups in the future
-    /// @param loanId the ID of the loan
-    /// @param participants the participants to be associated
+    /**
+     * @dev Associates the given participants to a loan, facilitating indexed lookups in the future.
+     * @param loanId The ID of the loan.
+     * @param participants The participants to be associated.
+     */
     function associateToLoan(uint256 loanId, address[] memory participants) private {
         uint256 participantsCount = participants.length;
-        for (uint256 i; i < participantsCount; ++i) {
+        for (uint256 i; i < participantsCount;) {
             address participant = participants[i];
             // see, first, if a zeroed-out slot can be reused
             uint256[] storage participantLoans = participatingLoans[participant];
@@ -439,7 +554,9 @@ contract Ploan is Initializable {
             if (loanCount > 0 && participantLoans[loanCount - 1] == 0) {
                 uint256 finalZeroedOutIndex = loanCount - 1;
                 while (finalZeroedOutIndex > 0 && participantLoans[finalZeroedOutIndex - 1] == 0) {
-                    --finalZeroedOutIndex;
+                    unchecked {
+                        --finalZeroedOutIndex;
+                    }
                 }
 
                 participantLoans[finalZeroedOutIndex] = loanId;
@@ -448,34 +565,50 @@ contract Ploan is Initializable {
             }
 
             emit LoanAssociated(loanId, participant);
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    /// @notice disassociates the given participants from a loan
-    /// @param loanId the ID of the loan
-    /// @param participants the participants to be disassociated
+    /**
+     * @dev Disassociates the given participants from a loan.
+     * @param loanId The ID of the loan.
+     * @param participants The participants to be disassociated.
+     */
     function disassociateFromLoan(uint256 loanId, address[] memory participants) private {
         uint256 participantsCount = participants.length;
-        for (uint256 i; i < participantsCount; ++i) {
+        for (uint256 i; i < participantsCount;) {
             address participant = participants[i];
             uint256[] memory loans = participatingLoans[participant];
             uint256 participantLoanCount = loans.length;
             // The end of the loan list will always be zeroed out, so stop if zero is encountered
-            for (uint256 j; j < participantLoanCount && loans[j] != 0; ++j) {
+            for (uint256 j; j < participantLoanCount && loans[j] != 0;) {
                 if (loans[j] == loanId) {
                     loans[j] = loans[participantLoanCount - 1];
                     delete loans[j];
-                    --participantLoanCount;
+                    unchecked {
+                        --participantLoanCount;
+                    }
 
                     emit LoanDisassociated(loanId, participant);
+                }
+                unchecked {
+                    ++j;
                 }
             }
 
             participatingLoans[participant] = loans;
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    /// @dev removes all traces of a loan from within the storage in this contract
+    /**
+     * @dev Removes all traces of a loan from within the storage in this contract.
+     * @param loan The PersonalLoan struct to remove.
+     */
     function removeLoan(PersonalLoan memory loan) private {
         address[] memory participants = new address[](2);
         participants[0] = loan.lender;
@@ -483,5 +616,64 @@ contract Ploan is Initializable {
         disassociateFromLoan(loan.loanId, participants);
 
         delete loansByID[loan.loanId];
+    }
+
+    /// @notice Pause contract in an emergency (only allowlisted pausers)
+    function pause() external whenNotPaused {
+        if (!pauserAllowlist[_msgSender()]) {
+            revert NotAllowedPauser(_msgSender());
+        }
+        _pause();
+    }
+
+    /// @notice Unpause contract after emergency (only allowlisted pausers)
+    function unpause() external whenPaused {
+        if (!pauserAllowlist[_msgSender()]) {
+            revert NotAllowedPauser(_msgSender());
+        }
+        _unpause();
+    }
+
+    /// @notice Add an address to the pauser allowlist (only existing pauser can add)
+    /// @param pauser The address to add
+    function addPauser(address pauser) external whenNotPaused {
+        if (!pauserAllowlist[_msgSender()]) {
+            revert NotAllowedPauser(_msgSender());
+        }
+        pauserAllowlist[pauser] = true;
+        emit PauserAllowlistModified(pauser, true);
+    }
+
+    /// @notice Remove an address from the pauser allowlist (only existing pauser can remove)
+    /// @param pauser The address to remove
+    function removePauser(address pauser) external whenNotPaused {
+        if (!pauserAllowlist[_msgSender()]) {
+            revert NotAllowedPauser(_msgSender());
+        }
+        pauserAllowlist[pauser] = false;
+        emit PauserAllowlistModified(pauser, false);
+    }
+
+    /// @notice Check if an address is a pauser
+    /// @param pauser The address to check
+    /// @return True if address is a pauser
+    function isPauser(address pauser) external view returns (bool) {
+        return pauserAllowlist[pauser];
+    }
+
+    /// @dev Returns the sender of the transaction, supporting ERC-4337 EntryPoints
+    function _msgSender() internal view virtual override returns (address) {
+        address sender_;
+        if (_entryPoints[msg.sender]) {
+            // solhint-disable-next-line avoid-low-level-calls
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                // ERC-4337: sender is the first parameter of UserOperation (first 32 bytes after selector)
+                sender_ := shr(96, calldataload(4)) // skip selector (4 bytes)
+            }
+        } else {
+            sender_ = msg.sender;
+        }
+        return sender_;
     }
 }

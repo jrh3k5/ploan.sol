@@ -21,7 +21,8 @@ import {
     LoanPaymentMade,
     LoanProposalAllowlistModified,
     LoanProposed,
-    PendingLoanCanceled
+    PendingLoanCanceled,
+    AlreadyPaidExceedsLoaned
 } from "../src/Ploan.sol";
 import {PersonalLoan} from "../src/PersonalLoan.sol";
 import {PloanTestToken} from "./mocks/PloanTestToken.sol";
@@ -147,6 +148,14 @@ contract PloanTest is Test {
         vm.prank(lender);
         vm.expectRevert(abi.encodeWithSelector(LenderNotAllowlisted.selector, lender));
         ploan.proposeLoan(borrower, address(token), 100);
+    }
+
+    function test_importLoan_revertsIfAlreadyPaidExceedsLoaned() public {
+        vm.prank(borrower);
+        ploan.allowLoanProposal(lender);
+        vm.prank(lender);
+        vm.expectRevert(abi.encodeWithSelector(AlreadyPaidExceedsLoaned.selector, 2000, 1000));
+        ploan.importLoan(borrower, address(token), 1000, 2000);
     }
 
     function test_importLoan_defaultLifecycle() public {
