@@ -30,6 +30,8 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Base Sepolia Testnet Deploy
+        env:
+          TRANSPARENT_PROXY_ADDRESS: 0xEE69dBb8eE67D79Fa6C7fBf86D6dc51eaecb76d4
         run: |
           forge clean
           forge script script/UpgradesScript.s.sol --rpc-url base_sepolia --private-key $PRIVATE_KEY --broadcast --sender $SENDER --verify --etherscan-api-key $BASE_SEPOLIA_ETHERSCAN_API_KEY
